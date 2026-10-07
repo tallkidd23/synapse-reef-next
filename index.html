@@ -2,114 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Synapse Reef</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Synapse Reef • Autonomous Neural Coral</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="wrap">
-    <header class="header">
-      <div class="title-row">
-        <div>
-          <p class="eyebrow">Living Substrate Simulation</p>
+  <div class="app-container">
+    
+    <section class="viewport-section" id="viewport">
+      <div class="canvas-hud-header">
+        <div class="hud-title-group">
           <h1>Synapse Reef</h1>
         </div>
-        <div class="status-pill" id="systemState">Substrate Active</div>
+        <div class="hud-badges">
+          <span>Regime: <strong id="hudRegime">Verdant Solstice</strong></span>
+          <span>Biomass: <strong id="hudBiomass">8320</strong></span>
+          <span>Entities: <strong id="hudEntities">65</strong></span>
+        </div>
       </div>
-      <p class="subtitle">
-        Self-organizing neural-coral automata, long-term substrate memory, generative bio-acoustics, and real-time telemetry.
-      </p>
-    </header>
 
-    <main class="grid">
-      <section class="viewport-card card">
-        <div class="canvas-wrap">
-          <canvas id="reefCanvas" width="960" height="540"></canvas>
-          <div class="hud" id="hud">
-            <span id="hudRegime">Regime: —</span>
-            <span id="hudBiomass">Total Biomass: —</span>
-            <span id="hudOrganisms">Motile Entities: —</span>
+      <canvas id="reefCanvas"></canvas>
+
+      <div class="canvas-controls-bar">
+        <button class="control-btn" id="btnPause">Pause Substrate</button>
+        <button class="control-btn" id="btnStep">Step (100ms)</button>
+        <button class="control-btn" id="btnReseed">Reseed Reef</button>
+        <button class="control-btn" id="btnHeatPulse">Trigger Heat Pulse</button>
+        <label class="control-toggle">
+          <input type="checkbox" id="chkAudio" checked> Audio
+        </label>
+        <label class="control-toggle">
+          <input type="checkbox" id="chkSubstrate"> Substrate Fields
+        </label>
+      </div>
+    </section>
+
+    <div class="telemetry-drawer" id="telemetryDrawer">
+      <div class="drawer-header" id="drawerToggle">
+        <div class="drawer-pill"></div>
+        <div class="drawer-title-row">
+          <span>Live Substrate Telemetry</span>
+          <span id="drawerIndicator">▲ Expand</span>
+        </div>
+      </div>
+
+      <div class="drawer-content">
+        <div class="metric-card">
+          <div class="metric-label">Flora Mass</div>
+          <div class="metric-val" id="metricFlora">7900</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Grazer Count</div>
+          <div class="metric-val" id="metricGrazer">42</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Apex Biomass</div>
+          <div class="metric-val" id="metricApex">5</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Benthic Crabs</div>
+          <div class="metric-val" id="metricCrabs">18</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Nutrient Index</div>
+          <div class="metric-val" id="metricNutrient">1.13</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Signal Entropy</div>
+          <div class="metric-val" id="metricEntropy">0.28</div>
+        </div>
+        <div class="metric-card metric-full">
+          <div class="metric-label">Environmental Regimes</div>
+          <div class="metric-val" style="font-size:0.85rem;" id="metricEnv">
+            Water Temp: 25.5°C | Solar Lux: 100% | pH: 8.15
           </div>
         </div>
-        <div class="controls">
-          <button id="toggleBtn" class="btn primary">Pause Substrate</button>
-          <button id="stepBtn" class="btn">Step (100ms)</button>
-          <button id="seedBtn" class="btn">Reseed Reef</button>
-          <button id="stressBtn" class="btn danger">Trigger Heat Pulse</button>
-          <button id="audioBtn" class="btn secondary">Audio: Off</button>
-          <label class="toggle-wrap">
-            <input type="checkbox" id="fieldToggle" checked>
-            <span>Substrate Fields</span>
-          </label>
-          <label class="toggle-wrap">
-            <input type="checkbox" id="neuralToggle" checked>
-            <span>Neural Nodes</span>
-          </label>
-        </div>
-      </section>
+      </div>
+    </div>
 
-      <section class="telemetry-card card">
-        <h2>Live Substrate Telemetry</h2>
-        <div class="metric-grid">
-          <div class="metric">
-            <span class="metric-label">Flora Mass</span>
-            <span class="metric-val" id="floraVal">0</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Grazer Count</span>
-            <span class="metric-val" id="grazerVal">0</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Apex Biomass</span>
-            <span class="metric-val" id="apexVal">0</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Benthic Crabs</span>
-            <span class="metric-val" id="crabVal">0</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Nutrient Index</span>
-            <span class="metric-val" id="nutrientVal">0.00</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Signal Entropy</span>
-            <span class="metric-val" id="entropyVal">0.00</span>
-          </div>
-        </div>
-
-        <div class="env-block">
-          <h3>Environmental Regimes</h3>
-          <div class="regime-grid">
-            <div class="env-item">
-              <span>Water Temp</span>
-              <strong id="tempDisplay">24.0°C</strong>
-            </div>
-            <div class="env-item">
-              <span>Solar Lux</span>
-              <strong id="luxDisplay">100%</strong>
-            </div>
-            <div class="env-item">
-              <span>Acidification (pH)</span>
-              <strong id="phDisplay">8.15</strong>
-            </div>
-          </div>
-        </div>
-
-        <div class="audio-panel">
-          <h3>Generative Bio-Acoustics</h3>
-          <p class="subtle">Audio synthesis derived continuously from neural coral membrane potentials and trophic wave frequencies.</p>
-          <div class="audio-metrics">
-            <div><span>Primary Tone:</span> <strong id="toneDisplay">Off</strong></div>
-            <div><span>Active Voices:</span> <strong id="voicesDisplay">0 / 4</strong></div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <span>Synapse Reef • Real-Time Autonomous Ecosystem Art</span>
-      <span id="fpsCounter">FPS: 60</span>
-    </footer>
   </div>
 
   <script src="audio-safety.js"></script>
