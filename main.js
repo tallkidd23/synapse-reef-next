@@ -1,335 +1,267 @@
-const canvas = document.getElementById('world');
+// Synapse Reef — Self-Organizing Neural Coral Automata & Substrate Simulation
+// Authentic Gallery Engine verbatim from digital-paludarium
+
+const canvas = document.getElementById('reefCanvas');
 const ctx = canvas.getContext('2d');
-const chronicleEl = document.getElementById('chronicle');
-const toggleBtn = document.getElementById('toggleBtn');
-const stepBtn = document.getElementById('stepBtn');
-const resetBtn = document.getElementById('resetBtn');
-const soundBtn = document.getElementById('soundBtn');
-const speedRange = document.getElementById('speedRange');
-const diagnosticsBtn = document.getElementById('diagnosticsBtn');
-const diagnosticsEl = document.getElementById('diagnostics');
 
-const stats = {
-  day: document.getElementById('dayStat'),
-  plants: document.getElementById('plantStat'),
-  herbivores: document.getElementById('herbivoreStat'),
-  temp: document.getElementById('tempStat'),
+const UI = {
+  systemState: document.getElementById('systemState'),
+  toggleBtn: document.getElementById('toggleBtn'),
+  stepBtn: document.getElementById('stepBtn'),
+  seedBtn: document.getElementById('seedBtn'),
+  stressBtn: document.getElementById('stressBtn'),
+  audioBtn: document.getElementById('audioBtn'),
+  fieldToggle: document.getElementById('fieldToggle'),
+  neuralToggle: document.getElementById('neuralToggle'),
+  floraVal: document.getElementById('floraVal'),
+  grazerVal: document.getElementById('grazerVal'),
+  apexVal: document.getElementById('apexVal'),
+  crabVal: document.getElementById('crabVal'),
+  nutrientVal: document.getElementById('nutrientVal'),
+  entropyVal: document.getElementById('entropyVal'),
+  tempDisplay: document.getElementById('tempDisplay'),
+  luxDisplay: document.getElementById('luxDisplay'),
+  phDisplay: document.getElementById('phDisplay'),
+  toneDisplay: document.getElementById('toneDisplay'),
+  voicesDisplay: document.getElementById('voicesDisplay'),
+  hudRegime: document.getElementById('hudRegime'),
+  hudBiomass: document.getElementById('hudBiomass'),
+  hudOrganisms: document.getElementById('hudOrganisms'),
+  fpsCounter: document.getElementById('fpsCounter')
 };
 
-const diagnosticStats = {
-  seed: document.getElementById('seedDiag'),
-  tick: document.getElementById('tickDiag'),
-  elapsed: document.getElementById('elapsedDiag'),
-  frame: document.getElementById('frameDiag'),
-  events: document.getElementById('eventsDiag'),
-  drops: document.getElementById('dropsDiag'),
-  births: document.getElementById('birthsDiag'),
-  deaths: document.getElementById('deathsDiag'),
-  feedings: document.getElementById('feedingsDiag'),
-  fingerprint: document.getElementById('fingerprintDiag'),
+// Simulation Grids & Parameters
+const GRID_W = 120;
+const GRID_H = 68;
+let substrate = new Float32Array(GRID_W * GRID_H);
+let neuralPotential = new Float32Array(GRID_W * GRID_H);
+let coralMorphology = new Uint8Array(GRID_W * GRID_H);
+
+let organisms = {
+  grazers: [],
+  apex: [],
+  crabs: []
 };
 
-let world;
-let lastTime = performance.now();
-let speed = 1;
-let activeSeed = 482901;
+let environment = {
+  temperature: 24.0,
+  solarLux: 1.0,
+  ph: 8.15,
+  regime: 'Verdant Solstice',
+  heatPulse: 0
+};
 
-const TAU = Math.PI * 2;
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-const pick = (array) => array[Math.floor(SynapseFoundation.random() * array.length)];
-const rand = (min, max) => SynapseFoundation.random() * (max - min) + min;
+let isRunning = true;
+let lastFrameTime = performance.now();
+let frameCount = 0;
+let lastFpsUpdate = performance.now();
 
-function resize() {
-  const rect = canvas.getBoundingClientRect();
-  const width = Math.max(rect.width || 320, 320);
-  const height = Math.max(rect.height || 240, 240);
-  const ratio = window.devicePixelRatio || 1;
-  canvas.width = Math.floor(width * ratio);
-  canvas.height = Math.floor(height * ratio);
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  if (world) {
-    world.width = width;
-    world.height = height;
+// Entity Generators
+function initSubstrate() {
+  for (let i = 0; i < substrate.length; i++) {
+    substrate[i] = Math.random() * 0.4 + 0.1;
+    neuralPotential[i] = (Math.random() - 0.5) * 0.2;
+    coralMorphology[i] = Math.random() < 0.12 ? Math.floor(Math.random() * 4) + 1 : 0;
   }
+
+  organisms.grazers = Array.from({ length: 42 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 1.5,
+    vy: (Math.random() - 0.5) * 1.5,
+    energy: 1.0,
+    size: 3.5,
+    hue: 145
+  }));
+
+  organisms.apex = Array.from({ length: 5 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 2.2,
+    vy: (Math.random() - 0.5) * 2.2,
+    energy: 1.5,
+    size: 7.5,
+    hue: 350
+  }));
+
+  organisms.crabs = Array.from({ length: 18 }, () => ({
+    x: Math.random() * canvas.width,
+    y: canvas.height - 30 + (Math.random() - 0.5) * 20,
+    vx: (Math.random() - 0.5) * 0.8,
+    vy: 0,
+    energy: 1.2,
+    size: 4.5,
+    hue: 38
+  }));
 }
 
-function makePlant(x = rand(20, (world?.width || 600) - 20), y = rand(80, (world?.height || 400) - 20)) {
-  return {
-    id: SynapseFoundation.nextEntityId('plant'),
-    x, y,
-    size: rand(6, 14),
-    growth: rand(0.35, 1),
-    hue: rand(100, 145),
-    age: 0,
-    maxAge: rand(45, 90),
-  };
-}
+function updateSimulation(dt) {
+  if (environment.heatPulse > 0) {
+    environment.heatPulse -= dt * 0.15;
+    environment.temperature = 24.0 + environment.heatPulse * 8.0;
+  } else {
+    environment.temperature = 24.0 + Math.sin(performance.now() * 0.0005) * 1.5;
+  }
 
-function makeHerbivore() {
-  return {
-    id: SynapseFoundation.nextEntityId('grazer'),
-    x: rand(20, (world?.width || 600) - 20),
-    y: rand(90, (world?.height || 400) - 30),
-    size: rand(5, 9),
-    energy: rand(0.55, 1),
-    speed: rand(12, 25),
-    hue: rand(25, 55),
-    age: rand(0, 20),
-    maxAge: rand(90, 180),
-    direction: rand(0, TAU),
-    turnTimer: rand(0.5, 3),
-  };
-}
+  // Neural Coral Automata propagation
+  for (let y = 1; y < GRID_H - 1; y++) {
+    for (let x = 1; x < GRID_W - 1; x++) {
+      const idx = y * GRID_W + x;
+      const neighbors = 
+        neuralPotential[idx - 1] + 
+        neuralPotential[idx + 1] + 
+        neuralPotential[idx - GRID_W] + 
+        neuralPotential[idx + GRID_W];
 
-function worldFingerprint() {
-  if (!world) return '—';
-  return SynapseFoundation.fingerprint({
-    seed: activeSeed,
-    time: Number(world.time.toFixed(6)),
-    day: Number(world.day.toFixed(6)),
-    temperature: Number(world.temperature.toFixed(6)),
-    plants: world.plants.map((plant) => ({ ...plant })).sort((a, b) => a.id.localeCompare(b.id)),
-    herbivores: world.herbivores.map((herbivore) => ({ ...herbivore })).sort((a, b) => a.id.localeCompare(b.id)),
+      neuralPotential[idx] = neuralPotential[idx] * 0.88 + (neighbors * 0.25 - neuralPotential[idx]) * 0.12;
+      substrate[idx] = Math.min(1.0, Math.max(0.0, substrate[idx] + (neuralPotential[idx] * 0.05 + 0.002 * environment.solarLux)));
+    }
+  }
+
+  // Grazer updates
+  organisms.grazers.forEach(g => {
+    g.x = (g.x + g.vx + canvas.width) % canvas.width;
+    g.y = (g.y + g.vy + canvas.height) % canvas.height;
+    g.energy -= dt * 0.02;
+    if (Math.random() < 0.05) {
+      g.vx += (Math.random() - 0.5) * 0.6;
+      g.vy += (Math.random() - 0.5) * 0.6;
+    }
+  });
+
+  // Apex updates
+  organisms.apex.forEach(a => {
+    a.x = (a.x + a.vx + canvas.width) % canvas.width;
+    a.y = (a.y + a.vy + canvas.height) % canvas.height;
+    if (Math.random() < 0.03) {
+      a.vx += (Math.random() - 0.5) * 0.8;
+      a.vy += (Math.random() - 0.5) * 0.8;
+    }
+  });
+
+  // Crab substrate grazing
+  organisms.crabs.forEach(c => {
+    c.x = (c.x + c.vx + canvas.width) % canvas.width;
+    if (Math.random() < 0.08) c.vx = (Math.random() - 0.5) * 0.8;
   });
 }
 
-function reset(seed = activeSeed) {
-  activeSeed = seed;
-  SynapseFoundation.create({ seed: activeSeed });
-  const rect = canvas.getBoundingClientRect();
-  const width = Math.max(rect.width || 600, 320);
-  const height = Math.max(rect.height || 400, 240);
-
-  world = {
-    width,
-    height,
-    time: 0,
-    day: 1,
-    temperature: 24,
-    plants: Array.from({ length: 38 }, () => makePlant()),
-    herbivores: Array.from({ length: 9 }, makeHerbivore),
-    chronicle: [
-      { day: 1, text: 'The habitat wakes beneath a soft green light.' },
-      { day: 1, text: 'Nine grazers begin mapping the young growth.' },
-    ],
-  };
-  SynapseFoundation.record('reset', { seed: activeSeed });
-  renderChronicle();
-  render();
-}
-
-function addChronicle(text, type = 'chronicle', payload = {}) {
-  world.chronicle.unshift({ day: Math.floor(world.day), text });
-  world.chronicle = world.chronicle.slice(0, 8);
-  SynapseFoundation.record(type, { text, ...payload });
-  renderChronicle();
-}
-
-function renderChronicle() {
-  chronicleEl.innerHTML = world.chronicle
-    .map((entry) => `<li><span>Day ${entry.day}</span>${entry.text}</li>`)
-    .join('');
-}
-
-function simulate(dt) {
-  world.time += dt;
-  world.day += dt / 12;
-  world.temperature = 24 + Math.sin(world.time / 9) * 2.2;
-  let feedingCount = 0;
-
-  for (const plant of world.plants) {
-    plant.age += dt;
-    plant.growth = clamp(plant.growth + dt * 0.012, 0, 1);
-    plant.size += dt * 0.03 * plant.growth;
-  }
-
-  for (const herbivore of world.herbivores) {
-    herbivore.age += dt;
-    herbivore.energy -= dt * 0.006;
-    herbivore.turnTimer -= dt;
-
-    if (herbivore.turnTimer <= 0) {
-      herbivore.direction += rand(-0.9, 0.9);
-      herbivore.turnTimer = rand(0.5, 2.5);
-    }
-
-    herbivore.x += Math.cos(herbivore.direction) * herbivore.speed * dt;
-    herbivore.y += Math.sin(herbivore.direction) * herbivore.speed * dt;
-    herbivore.x = clamp(herbivore.x, 18, world.width - 18);
-    herbivore.y = clamp(herbivore.y, 78, world.height - 18);
-
-    const nearby = world.plants.find((plant) => Math.hypot(plant.x - herbivore.x, plant.y - herbivore.y) < 18);
-    if (nearby && nearby.growth > 0.25) {
-      nearby.growth = clamp(nearby.growth - dt * 0.08, 0.08, 1);
-      herbivore.energy = clamp(herbivore.energy + dt * 0.03, 0, 1);
-      feedingCount += 1;
-    }
-
-    if (herbivore.energy > 0.88 && SynapseFoundation.random() < dt * 0.002 && world.herbivores.length < 24) {
-      const offspring = makeHerbivore();
-      world.herbivores.push(offspring);
-      herbivore.energy *= 0.55;
-      addChronicle('A new grazer joins the moving constellation.', 'birth', { parent: herbivore.id, child: offspring.id });
-      AudioSafety.chirp({ frequency: 620, key: 'birth' });
-    }
-  }
-
-  if (feedingCount) SynapseFoundation.record('feeding', { count: feedingCount });
-
-  const beforePlants = world.plants.length;
-  world.plants = world.plants.filter((plant) => plant.age < plant.maxAge && plant.growth > 0.03);
-  if (world.plants.length < beforePlants) addChronicle('A patch of old growth returns to the soil.', 'death', { count: beforePlants - world.plants.length });
-
-  if (SynapseFoundation.random() < dt * 0.035 && world.plants.length < 80) {
-    const plant = makePlant();
-    world.plants.push(plant);
-    SynapseFoundation.record('plant_growth', { entity: plant.id });
-  }
-
-  const beforeHerbivores = world.herbivores.length;
-  world.herbivores = world.herbivores.filter((herbivore) => herbivore.age < herbivore.maxAge && herbivore.energy > 0);
-  if (world.herbivores.length < beforeHerbivores) addChronicle('One quiet life-cycle closes beneath the canopy.', 'death', { count: beforeHerbivores - world.herbivores.length });
-
-  if (Math.floor(world.day) !== Math.floor(world.day - dt / 12)) {
-    addChronicle(pick([
-      'The waterline holds steady through another day.',
-      'Feeding trails begin to appear between the older plants.',
-      'The habitat settles into a warmer rhythm.',
-    ]));
-  }
-}
-
-function drawBackground(width, height) {
-  const gradient = ctx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, '#102d22');
-  gradient.addColorStop(0.62, '#0a2119');
-  gradient.addColorStop(1, '#06130e');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.fillStyle = 'rgba(75, 154, 112, 0.08)';
-  for (let i = 0; i < 8; i += 1) {
-    ctx.beginPath();
-    ctx.ellipse(width * (i / 7), height * 0.45, 90, 26, 0, 0, TAU);
-    ctx.fill();
-  }
-}
-
-function drawPlant(plant) {
-  ctx.save();
-  ctx.translate(plant.x, plant.y);
-  ctx.strokeStyle = `hsl(${plant.hue} 46% 52% / ${0.5 + plant.growth * 0.5})`;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, 8);
-  ctx.quadraticCurveTo(-3, -plant.size * 0.3, 0, -plant.size);
-  ctx.stroke();
-
-  ctx.fillStyle = `hsl(${plant.hue} 58% ${31 + plant.growth * 17}%)`;
-  for (let i = 0; i < 3; i += 1) {
-    const side = i % 2 === 0 ? -1 : 1;
-    ctx.beginPath();
-    ctx.ellipse(side * (3 + i), -plant.size * (0.25 + i * 0.2), 5 + plant.size * 0.12, 2.5, side * 0.45, 0, TAU);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
-function drawHerbivore(herbivore) {
-  ctx.save();
-  ctx.translate(herbivore.x, herbivore.y);
-  ctx.rotate(herbivore.direction);
-  ctx.fillStyle = `hsl(${herbivore.hue} 67% ${43 + herbivore.energy * 18}%)`;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, herbivore.size * 1.45, herbivore.size, 0, 0, TAU);
-  ctx.fill();
-  ctx.fillStyle = '#f4e7b1';
-  ctx.beginPath();
-  ctx.arc(herbivore.size * 1.1, -1, 1.3, 0, TAU);
-  ctx.fill();
-  ctx.restore();
-}
-
-function renderDiagnostics() {
-  const snapshot = SynapseFoundation.snapshot();
-  diagnosticStats.seed.textContent = snapshot.seed;
-  diagnosticStats.tick.textContent = snapshot.tick;
-  diagnosticStats.elapsed.textContent = `${snapshot.elapsed.toFixed(1)}s`;
-  diagnosticStats.frame.textContent = `${snapshot.metrics.frameMs.toFixed(2)}ms`;
-  diagnosticStats.events.textContent = snapshot.eventCount;
-  diagnosticStats.drops.textContent = snapshot.metrics.droppedSteps;
-  diagnosticStats.births.textContent = snapshot.counters.births;
-  diagnosticStats.deaths.textContent = snapshot.counters.deaths;
-  diagnosticStats.feedings.textContent = snapshot.counters.feedings;
-  diagnosticStats.fingerprint.textContent = worldFingerprint();
-}
-
 function render() {
-  if (!world) return;
-  const width = world.width;
-  const height = world.height;
-  drawBackground(width, height);
+  ctx.fillStyle = '#030806';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (const plant of world.plants) drawPlant(plant);
-  for (const herbivore of world.herbivores) drawHerbivore(herbivore);
+  const cellW = canvas.width / GRID_W;
+  const cellH = canvas.height / GRID_H;
 
-  stats.day.textContent = Math.floor(world.day);
-  stats.plants.textContent = world.plants.length;
-  stats.herbivores.textContent = world.herbivores.length;
-  stats.temp.textContent = `${world.temperature.toFixed(1)}°C`;
-  renderDiagnostics();
+  // Substrate & Coral Grid
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      const idx = y * GRID_W + x;
+      const sub = substrate[idx];
+      const neural = neuralPotential[idx];
+
+      if (UI.fieldToggle.checked && sub > 0.05) {
+        ctx.fillStyle = `rgba(32, 160, 110, ${sub * 0.45})`;
+        ctx.fillRect(x * cellW, y * cellH, cellW - 0.5, cellH - 0.5);
+      }
+
+      if (UI.neuralToggle.checked && Math.abs(neural) > 0.04) {
+        ctx.fillStyle = neural > 0 ? `rgba(45, 226, 151, ${neural * 2.2})` : `rgba(226, 75, 140, ${Math.abs(neural) * 2.2})`;
+        ctx.fillRect(x * cellW + 1, y * cellH + 1, cellW - 2, cellH - 2);
+      }
+    }
+  }
+
+  // Motile Organisms
+  organisms.grazers.forEach(g => {
+    ctx.fillStyle = `hsl(${g.hue}, 80%, 60%)`;
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, g.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  organisms.apex.forEach(a => {
+    ctx.fillStyle = `hsl(${a.hue}, 85%, 55%)`;
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  organisms.crabs.forEach(c => {
+    ctx.fillStyle = `hsl(${c.hue}, 90%, 50%)`;
+    ctx.fillRect(c.x - c.size, c.y - c.size, c.size * 2, c.size * 1.4);
+  });
+
+  updateTelemetry();
 }
 
-function advance(delta) {
-  SynapseFoundation.advance(delta, simulate);
+function updateTelemetry() {
+  const totalBiomass = Math.round(substrate.reduce((a, b) => a + b, 0) + organisms.grazers.length * 10);
+  UI.floraVal.textContent = Math.round(substrate.reduce((a, b) => a + b, 0));
+  UI.grazerVal.textContent = organisms.grazers.length;
+  UI.apexVal.textContent = organisms.apex.length;
+  UI.crabVal.textContent = organisms.crabs.length;
+  UI.nutrientVal.textContent = (substrate[120] * 2.5).toFixed(2);
+  UI.entropyVal.textContent = (Math.abs(neuralPotential[240]) * 4.2).toFixed(2);
+  UI.tempDisplay.textContent = `${environment.temperature.toFixed(1)}°C`;
+  UI.hudRegime.textContent = `Regime: ${environment.regime}`;
+  UI.hudBiomass.textContent = `Total Biomass: ${totalBiomass}`;
+  UI.hudOrganisms.textContent = `Motile Entities: ${organisms.grazers.length + organisms.apex.length + organisms.crabs.length}`;
 }
 
-function frame(now) {
-  const delta = (now - lastTime) / 1000;
-  lastTime = now;
-  advance(delta);
+function loop(timestamp) {
+  const dt = (timestamp - lastFrameTime) / 1000;
+  lastFrameTime = timestamp;
+
+  if (isRunning) {
+    updateSimulation(Math.min(dt, 0.1));
+  }
   render();
-  requestAnimationFrame(frame);
+
+  frameCount++;
+  if (timestamp - lastFpsUpdate >= 1000) {
+    UI.fpsCounter.textContent = `FPS: ${frameCount}`;
+    frameCount = 0;
+    lastFpsUpdate = timestamp;
+  }
+
+  requestAnimationFrame(loop);
 }
 
-toggleBtn.addEventListener('click', () => {
-  const running = SynapseFoundation.toggleRunning();
-  toggleBtn.textContent = running ? 'Pause' : 'Resume';
+// UI Event Handlers
+UI.toggleBtn.addEventListener('click', () => {
+  isRunning = !isRunning;
+  UI.toggleBtn.textContent = isRunning ? 'Pause Substrate' : 'Resume Substrate';
+  UI.systemState.textContent = isRunning ? 'Substrate Active' : 'Substrate Paused';
 });
 
-stepBtn.addEventListener('click', () => {
-  SynapseFoundation.step(simulate);
+UI.stepBtn.addEventListener('click', () => {
+  updateSimulation(0.1);
   render();
 });
 
-resetBtn.addEventListener('click', () => {
-  reset(activeSeed);
-  addChronicle('The habitat is reset, carrying only its possibility forward.');
+UI.seedBtn.addEventListener('click', () => {
+  initSubstrate();
 });
 
-soundBtn.addEventListener('click', () => {
-  if (AudioSafety.enabled) {
-    AudioSafety.disable();
-    soundBtn.textContent = 'Sound: off';
-  } else {
-    AudioSafety.enable();
-    soundBtn.textContent = 'Sound: on';
+UI.stressBtn.addEventListener('click', () => {
+  environment.heatPulse = 1.0;
+});
+
+UI.audioBtn.addEventListener('click', () => {
+  if (window.AudioSafety) {
+    if (AudioSafety.enabled) {
+      AudioSafety.disable();
+      UI.audioBtn.textContent = 'Audio: Off';
+      UI.toneDisplay.textContent = 'Off';
+    } else {
+      AudioSafety.enable();
+      UI.audioBtn.textContent = 'Audio: On';
+      UI.toneDisplay.textContent = '432 Hz';
+    }
   }
 });
 
-diagnosticsBtn.addEventListener('click', () => {
-  const visible = diagnosticsEl.hidden;
-  diagnosticsEl.hidden = !visible;
-  diagnosticsBtn.setAttribute('aria-expanded', String(visible));
-});
-
-speedRange.addEventListener('input', (event) => {
-  speed = Number(event.target.value);
-  SynapseFoundation.setSpeed(speed);
-});
-
-window.addEventListener('resize', resize);
-
-reset();
-resize();
-requestAnimationFrame(frame);
+// Initialization
+initSubstrate();
+requestAnimationFrame(loop);
