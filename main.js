@@ -41,17 +41,19 @@ const rand = (min, max) => SynapseFoundation.random() * (max - min) + min;
 
 function resize() {
   const rect = canvas.getBoundingClientRect();
+  const width = Math.max(rect.width || 320, 320);
+  const height = Math.max(rect.height || 240, 240);
   const ratio = window.devicePixelRatio || 1;
-  canvas.width = Math.floor(rect.width * ratio);
-  canvas.height = Math.floor(rect.height * ratio);
+  canvas.width = Math.floor(width * ratio);
+  canvas.height = Math.floor(height * ratio);
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   if (world) {
-    world.width = rect.width;
-    world.height = rect.height;
+    world.width = width;
+    world.height = height;
   }
 }
 
-function makePlant(x = rand(20, world.width - 20), y = rand(80, world.height - 20)) {
+function makePlant(x = rand(20, (world?.width || 600) - 20), y = rand(80, (world?.height || 400) - 20)) {
   return {
     id: SynapseFoundation.nextEntityId('plant'),
     x, y,
@@ -66,8 +68,8 @@ function makePlant(x = rand(20, world.width - 20), y = rand(80, world.height - 2
 function makeHerbivore() {
   return {
     id: SynapseFoundation.nextEntityId('grazer'),
-    x: rand(20, world.width - 20),
-    y: rand(90, world.height - 30),
+    x: rand(20, (world?.width || 600) - 20),
+    y: rand(90, (world?.height || 400) - 30),
     size: rand(5, 9),
     energy: rand(0.55, 1),
     speed: rand(12, 25),
@@ -80,6 +82,7 @@ function makeHerbivore() {
 }
 
 function worldFingerprint() {
+  if (!world) return '—';
   return SynapseFoundation.fingerprint({
     seed: activeSeed,
     time: Number(world.time.toFixed(6)),
@@ -93,9 +96,13 @@ function worldFingerprint() {
 function reset(seed = activeSeed) {
   activeSeed = seed;
   SynapseFoundation.create({ seed: activeSeed });
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(rect.width || 600, 320);
+  const height = Math.max(rect.height || 400, 240);
+
   world = {
-    width: canvas.clientWidth,
-    height: canvas.clientHeight,
+    width,
+    height,
     time: 0,
     day: 1,
     temperature: 24,
@@ -108,6 +115,7 @@ function reset(seed = activeSeed) {
   };
   SynapseFoundation.record('reset', { seed: activeSeed });
   renderChronicle();
+  render();
 }
 
 function addChronicle(text, type = 'chronicle', payload = {}) {
@@ -257,6 +265,7 @@ function renderDiagnostics() {
 }
 
 function render() {
+  if (!world) return;
   const width = world.width;
   const height = world.height;
   drawBackground(width, height);
@@ -319,12 +328,8 @@ speedRange.addEventListener('input', (event) => {
   SynapseFoundation.setSpeed(speed);
 });
 
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) SynapseFoundation.setRunning(false);
-});
-
 window.addEventListener('resize', resize);
 
-resize();
 reset();
+resize();
 requestAnimationFrame(frame);
