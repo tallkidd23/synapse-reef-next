@@ -66,6 +66,7 @@ h2 { font-size: clamp(1.6rem, 3vw, 2.6rem); }
 
 .controls,
 .stats,
+.diagnostics,
 .world-card,
 .chronicle-card {
   border: 1px solid var(--line);
@@ -94,7 +95,8 @@ h2 { font-size: clamp(1.6rem, 3vw, 2.6rem); }
 
 input[type="range"] { accent-color: var(--accent); }
 
-.stats {
+.stats,
+.diagnostics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1px;
@@ -103,15 +105,23 @@ input[type="range"] { accent-color: var(--accent); }
   border-radius: 1.2rem;
 }
 
-.stats div {
+.diagnostics { grid-template-columns: repeat(6, 1fr); }
+
+.stats div,
+.diagnostics div {
   padding: 1rem;
   background: rgba(1, 13, 8, 0.22);
 }
 
 .stats span,
-.stats strong { display: block; }
-.stats span { color: var(--muted); font-size: 0.78rem; }
-.stats strong { margin-top: 0.3rem; color: var(--accent); font-size: 1.3rem; }
+.stats strong,
+.diagnostics span,
+.diagnostics strong { display: block; }
+.stats span,
+.diagnostics span { color: var(--muted); font-size: 0.78rem; }
+.stats strong,
+.diagnostics strong { margin-top: 0.3rem; color: var(--accent); font-size: 1.3rem; }
+.diagnostics strong { font-size: 1rem; }
 
 .world-card {
   height: min(62vw, 570px);
@@ -152,6 +162,10 @@ canvas { display: block; width: 100%; height: 100%; }
 .chronicle li span {
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .diagnostics { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 620px) {

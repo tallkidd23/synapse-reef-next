@@ -2,9 +2,12 @@ const canvas = document.getElementById('world');
 const ctx = canvas.getContext('2d');
 const chronicleEl = document.getElementById('chronicle');
 const toggleBtn = document.getElementById('toggleBtn');
+const stepBtn = document.getElementById('stepBtn');
 const resetBtn = document.getElementById('resetBtn');
 const soundBtn = document.getElementById('soundBtn');
 const speedRange = document.getElementById('speedRange');
+const diagnosticsBtn = document.getElementById('diagnosticsBtn');
+const diagnosticsEl = document.getElementById('diagnostics');
 
 const stats = {
   day: document.getElementById('dayStat'),
@@ -13,15 +16,23 @@ const stats = {
   temp: document.getElementById('tempStat'),
 };
 
+const diagnosticStats = {
+  seed: document.getElementById('seedDiag'),
+  tick: document.getElementById('tickDiag'),
+  elapsed: document.getElementById('elapsedDiag'),
+  frame: document.getElementById('frameDiag'),
+  events: document.getElementById('eventsDiag'),
+  drops: document.getElementById('dropsDiag'),
+};
+
 let world;
 let lastTime = performance.now();
-let running = true;
 let speed = 1;
 
 const TAU = Math.PI * 2;
-const rand = (min, max) => Math.random() * (max - min) + min;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-const pick = (array) => array[Math.floor(Math.random() * array.length)];
+const pick = (array) => array[Math.floor(SynapseFoundation.random() * array.length)];
+const rand = (min, max) => SynapseFoundation.random() * (max - min) + min;
 
 function resize() {
   const rect = canvas.getBoundingClientRect();
@@ -29,14 +40,16 @@ function resize() {
   canvas.width = Math.floor(rect.width * ratio);
   canvas.height = Math.floor(rect.height * ratio);
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  world.width = rect.width;
-  world.height = rect.height;
+  if (world) {
+    world.width = rect.width;
+    world.height = rect.height;
+  }
 }
 
 function makePlant(x = rand(20, world.width - 20), y = rand(80, world.height - 20)) {
   return {
-    x,
-    y,
+    id: SynapseFoundation.nextEntityId('plant'),
+    x, y,
     size: rand(6, 14),
     growth: rand(0.35, 1),
     hue: rand(100, 145),
@@ -47,6 +60,7 @@ function makePlant(x = rand(20, world.width - 20), y = rand(80, world.height - 2
 
 function makeHerbivore() {
   return {
+    id: SynapseFoundation.nextEntityId('grazer'),
     x: rand(20, world.width - 20),
     y: rand(90, world.height - 30),
     size: rand(5, 9),
@@ -60,7 +74,8 @@ function makeHerbivore() {
   };
 }
 
-function reset() {
+function reset(seed = 482901) {
+  SynapseFoundation.create({ seed });
   world = {
     width: canvas.clientWidth,
     height: canvas.clientHeight,
@@ -74,12 +89,14 @@ function reset() {
       { day: 1, text: 'Nine grazers begin mapping the young growth.' },
     ],
   };
+  SynapseFoundation.record('reset', { seed });
   renderChronicle();
 }
 
-function addChronicle(text) {
+function addChronicle(text, type = 'chronicle') {
   world.chronicle.unshift({ day: Math.floor(world.day), text });
   world.chronicle = world.chronicle.slice(0, 8);
+  SynapseFoundation.record(type, { text });
   renderChronicle();
 }
 
@@ -119,27 +136,32 @@ function simulate(dt) {
     if (nearby && nearby.growth > 0.25) {
       nearby.growth = clamp(nearby.growth - dt * 0.08, 0.08, 1);
       herbivore.energy = clamp(herbivore.energy + dt * 0.03, 0, 1);
+      SynapseFoundation.record('feeding', { actor: herbivore.id, target: nearby.id });
     }
 
-    if (herbivore.energy > 0.88 && Math.random() < dt * 0.002 && world.herbivores.length < 24) {
-      world.herbivores.push(makeHerbivore());
+    if (herbivore.energy > 0.88 && SynapseFoundation.random() < dt * 0.002 && world.herbivores.length < 24) {
+      const offspring = makeHerbivore();
+      world.herbivores.push(offspring);
       herbivore.energy *= 0.55;
-      addChronicle('A new grazer joins the moving constellation.');
+      addChronicle('A new grazer joins the moving constellation.', 'birth');
+      SynapseFoundation.record('birth', { parent: herbivore.id, child: offspring.id });
       AudioSafety.chirp({ frequency: 620, key: 'birth' });
     }
   }
 
   const beforePlants = world.plants.length;
   world.plants = world.plants.filter((plant) => plant.age < plant.maxAge && plant.growth > 0.03);
-  if (world.plants.length < beforePlants) addChronicle('A patch of old growth returns to the soil.');
+  if (world.plants.length < beforePlants) addChronicle('A patch of old growth returns to the soil.', 'death');
 
-  if (Math.random() < dt * 0.035 && world.plants.length < 80) {
-    world.plants.push(makePlant());
+  if (SynapseFoundation.random() < dt * 0.035 && world.plants.length < 80) {
+    const plant = makePlant();
+    world.plants.push(plant);
+    SynapseFoundation.record('plant_growth', { entity: plant.id });
   }
 
   const beforeHerbivores = world.herbivores.length;
   world.herbivores = world.herbivores.filter((herbivore) => herbivore.age < herbivore.maxAge && herbivore.energy > 0);
-  if (world.herbivores.length < beforeHerbivores) addChronicle('One quiet life-cycle closes beneath the canopy.');
+  if (world.herbivores.length < beforeHerbivores) addChronicle('One quiet life-cycle closes beneath the canopy.', 'death');
 
   if (Math.floor(world.day) !== Math.floor(world.day - dt / 12)) {
     addChronicle(pick([
@@ -201,6 +223,16 @@ function drawHerbivore(herbivore) {
   ctx.restore();
 }
 
+function renderDiagnostics() {
+  const snapshot = SynapseFoundation.snapshot();
+  diagnosticStats.seed.textContent = snapshot.seed;
+  diagnosticStats.tick.textContent = snapshot.tick;
+  diagnosticStats.elapsed.textContent = `${snapshot.elapsed.toFixed(1)}s`;
+  diagnosticStats.frame.textContent = `${snapshot.metrics.frameMs.toFixed(2)}ms`;
+  diagnosticStats.events.textContent = snapshot.eventCount;
+  diagnosticStats.drops.textContent = snapshot.metrics.droppedSteps;
+}
+
 function render() {
   const width = world.width;
   const height = world.height;
@@ -213,19 +245,29 @@ function render() {
   stats.plants.textContent = world.plants.length;
   stats.herbivores.textContent = world.herbivores.length;
   stats.temp.textContent = `${world.temperature.toFixed(1)}°C`;
+  renderDiagnostics();
+}
+
+function advance(delta) {
+  SynapseFoundation.advance(delta, simulate);
 }
 
 function frame(now) {
-  const dt = Math.min((now - lastTime) / 1000, 0.05) * speed;
+  const delta = (now - lastTime) / 1000;
   lastTime = now;
-  if (running) simulate(dt);
+  advance(delta);
   render();
   requestAnimationFrame(frame);
 }
 
 toggleBtn.addEventListener('click', () => {
-  running = !running;
+  const running = SynapseFoundation.toggleRunning();
   toggleBtn.textContent = running ? 'Pause' : 'Resume';
+});
+
+stepBtn.addEventListener('click', () => {
+  SynapseFoundation.step(simulate);
+  render();
 });
 
 resetBtn.addEventListener('click', () => {
@@ -243,8 +285,19 @@ soundBtn.addEventListener('click', () => {
   }
 });
 
+diagnosticsBtn.addEventListener('click', () => {
+  const visible = diagnosticsEl.hidden;
+  diagnosticsEl.hidden = !visible;
+  diagnosticsBtn.setAttribute('aria-expanded', String(visible));
+});
+
 speedRange.addEventListener('input', (event) => {
   speed = Number(event.target.value);
+  SynapseFoundation.setSpeed(speed);
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) SynapseFoundation.setRunning(false);
 });
 
 window.addEventListener('resize', resize);
