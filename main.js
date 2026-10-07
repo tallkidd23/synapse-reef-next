@@ -1,5 +1,5 @@
-// Synapse Reef v2.3 - Directional Branching Neural Reef Engine
-// Tree-like dendritic axon tendrils, rich ambient seabed substrate, organic polyp pulsation, and trophic dynamics
+// Synapse Reef v2.4 - Polished Dendritic Neural Reef Engine
+// Boundary-Aware Branching, Multi-Colony Seabed Stalks, Wave Action Pulses, and Fluid Substrate
 
 (function () {
   'use strict';
@@ -83,8 +83,7 @@
     A_field = new Float32Array(total);
 
     for (let y = 0; y < SUB_ROWS; y++) {
-      // Natural gradient: richer substrate towards seabed
-      const depthBias = 1.0 + (y / SUB_ROWS) * 2.0;
+      const depthBias = 1.0 + (y / SUB_ROWS) * 2.2;
       for (let x = 0; x < SUB_COLS; x++) {
         const i = x + y * SUB_COLS;
         S_field[i] = (2.5 + Math.random() * 2.5) * depthBias;
@@ -94,11 +93,11 @@
     }
   }
 
-  // --- Dendritic Autotrophs (Directional Branching Tree Tendrils) ---
+  // --- Dendritic Autotrophs (Boundary-Clamped Branching Stalks) ---
   const plants = [];
   const sparks = [];
   const decayPuffs = [];
-  const MAX_PLANTS = 140;
+  const MAX_PLANTS = 150;
 
   class DendriticAutotroph {
     constructor(x, y, parent, generation, genome) {
@@ -106,25 +105,24 @@
       this.y = y;
       this.parent = parent || null;
       this.children = [];
-      this.synapseWeights = new Map(); // Map<childPlant, weight>
-      this.parentWeight = 1.2;
+      this.synapseWeights = new Map();
 
       this.energy = 16.0;
       this.age = 0;
-      this.maxAge = 500 + Math.floor(Math.random() * 300);
+      this.maxAge = 550 + Math.floor(Math.random() * 300);
       this.phi = 0.0;
       this.defCalc = 0;
       this.generation = generation || 1;
       this.swayPhase = Math.random() * Math.PI * 2;
-      this.swaySpeed = 0.02 + Math.random() * 0.02;
+      this.swaySpeed = 0.015 + Math.random() * 0.015;
 
       this.genome = genome || {
-        gamma: 0.48,      // Photosynthetic efficiency
+        gamma: 0.46,      // Photosynthetic efficiency
         mu_p: 0.11,       // Maintenance cost
-        nu: 0.42,         // Mineral uptake
-        theta_rep: 30.0,  // Budding threshold
-        c_rep: 14.0,      // Budding cost
-        maxBranches: 2    // Max 2 child branches (strict dendritic tree)
+        nu: 0.40,         // Mineral uptake
+        theta_rep: 28.0,  // Budding threshold
+        c_rep: 13.0,      // Budding cost
+        maxBranches: 2    // Max 2 child branches
       };
 
       if (this.parent) {
@@ -138,7 +136,7 @@
       this.phi = Math.max(0.0, this.phi - 0.035);
       if (this.defCalc > 0) this.defCalc--;
 
-      // Relax Hebbian synapse weights
+      // Prune dead child synapses
       for (const [child, w] of this.synapseWeights.entries()) {
         if (!plants.includes(child)) {
           this.synapseWeights.delete(child);
@@ -171,26 +169,30 @@
         this.energy += (this.genome.gamma * climate.alpha_sun + u) - this.genome.mu_p;
       }
 
-      // Directional dendritic branching (outward & upward growth)
+      // Boundary-Aware Directional Branching
       if (this.energy >= this.genome.theta_rep && this.children.length < this.genome.maxBranches && plants.length < MAX_PLANTS && Math.random() < 0.22) {
-        let baseAngle = -Math.PI / 2;
+        let baseAngle = -Math.PI / 2; // Upward
         if (this.parent) {
           baseAngle = Math.atan2(this.y - this.parent.y, this.x - this.parent.x);
         }
-        const branchAngle = baseAngle + (Math.random() - 0.5) * 1.4;
-        const branchDist = 18 + Math.random() * 12;
+        const branchAngle = baseAngle + (Math.random() - 0.5) * 1.3;
+        const branchDist = 16 + Math.random() * 10;
 
-        const childX = (this.x + Math.cos(branchAngle) * branchDist + width) % width;
-        const childY = (this.y + Math.sin(branchAngle) * branchDist + height) % height;
+        // Clamp inside canvas bounds (avoids cross-screen torus streaks)
+        const childX = Math.max(12, Math.min(width - 12, this.x + Math.cos(branchAngle) * branchDist));
+        const childY = Math.max(12, Math.min(height - 12, this.y + Math.sin(branchAngle) * branchDist));
 
-        this.energy -= this.genome.c_rep;
-        const child = new DendriticAutotroph(childX, childY, this, this.generation + 1);
-        plants.push(child);
+        // Prevent zero-distance or cross-screen edge binds
+        if (Math.hypot(childX - this.x, childY - this.y) < 40) {
+          this.energy -= this.genome.c_rep;
+          const child = new DendriticAutotroph(childX, childY, this, this.generation + 1);
+          plants.push(child);
+        }
       }
     }
   }
 
-  // --- Heterotrophs with Organic Inertial Steering ---
+  // --- Heterotrophs with Smooth Momentum Steering ---
   const grazers = [];
   const apexPredators = [];
   const benthicCrabs = [];
@@ -436,42 +438,46 @@
 
       plant.phi = Math.max(plant.phi, phi);
 
-      // 1. Downstream tendril propagation
+      // Downstream tendrils
       for (let i = 0; i < plant.children.length; i++) {
         const child = plant.children[i];
-        let w = plant.synapseWeights.get(child) || 1.0;
-        const nextPhi = phi * 0.74 * Math.min(1.2, w);
-        plant.synapseWeights.set(child, Math.min(3.0, w + 0.08 * phi * nextPhi));
+        if (Math.hypot(child.x - plant.x, child.y - plant.y) < 50) {
+          let w = plant.synapseWeights.get(child) || 1.0;
+          const nextPhi = phi * 0.74 * Math.min(1.2, w);
+          plant.synapseWeights.set(child, Math.min(3.0, w + 0.08 * phi * nextPhi));
 
-        sparks.push({
-          x1: plant.x,
-          y1: plant.y,
-          x2: child.x,
-          y2: child.y,
-          sigma: 0,
-          v: 0.12 + Math.random() * 0.04
-        });
+          sparks.push({
+            x1: plant.x,
+            y1: plant.y,
+            x2: child.x,
+            y2: child.y,
+            sigma: 0,
+            v: 0.12 + Math.random() * 0.04
+          });
 
-        queue.push({ plant: child, phi: nextPhi, depth: depth + 1 });
+          queue.push({ plant: child, phi: nextPhi, depth: depth + 1 });
+        }
       }
 
-      // 2. Upstream parent propagation
+      // Upstream parent stalk
       if (plant.parent && !visited.has(plant.parent)) {
-        const nextPhi = phi * 0.68;
-        sparks.push({
-          x1: plant.x,
-          y1: plant.y,
-          x2: plant.parent.x,
-          y2: plant.parent.y,
-          sigma: 0,
-          v: 0.12 + Math.random() * 0.04
-        });
-        queue.push({ plant: plant.parent, phi: nextPhi, depth: depth + 1 });
+        if (Math.hypot(plant.parent.x - plant.x, plant.parent.y - plant.y) < 50) {
+          const nextPhi = phi * 0.68;
+          sparks.push({
+            x1: plant.x,
+            y1: plant.y,
+            x2: plant.parent.x,
+            y2: plant.parent.y,
+            sigma: 0,
+            v: 0.12 + Math.random() * 0.04
+          });
+          queue.push({ plant: plant.parent, phi: nextPhi, depth: depth + 1 });
+        }
       }
     }
   }
 
-  // --- Ecosystem Seeding ---
+  // --- Multi-Colony Seabed Seeding ---
   function initEcosystem() {
     plants.length = 0;
     grazers.length = 0;
@@ -480,19 +486,19 @@
     sparks.length = 0;
     decayPuffs.length = 0;
 
-    // Seed 6 root coral heads with initial tendril branches
-    const rootCount = 6;
+    // Seed 6-8 root coral colonies along the seabed
+    const rootCount = 7;
     for (let k = 0; k < rootCount; k++) {
-      const rootX = 30 + (k / (rootCount - 1)) * (width - 60) + (Math.random() - 0.5) * 30;
-      const rootY = height * 0.60 + Math.random() * (height * 0.28);
+      const rootX = 35 + (k / (rootCount - 1)) * (width - 70) + (Math.random() - 0.5) * 25;
+      const rootY = height * 0.65 + Math.random() * (height * 0.25);
       const root = new DendriticAutotroph(rootX, rootY, null, 1);
       plants.push(root);
 
       for (let b = 0; b < 2; b++) {
-        const bAngle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
-        const bDist = 18 + Math.random() * 10;
-        const bX = (rootX + Math.cos(bAngle) * bDist + width) % width;
-        const bY = (rootY + Math.sin(bAngle) * bDist + height) % height;
+        const bAngle = -Math.PI / 2 + (Math.random() - 0.5) * 1.1;
+        const bDist = 16 + Math.random() * 8;
+        const bX = Math.max(12, Math.min(width - 12, rootX + Math.cos(bAngle) * bDist));
+        const bY = Math.max(12, Math.min(height - 12, rootY + Math.sin(bAngle) * bDist));
         plants.push(new DendriticAutotroph(bX, bY, root, 2));
       }
     }
@@ -674,25 +680,29 @@
       ctx.restore();
     }
 
-    // 2. Directional Branching Dendritic Tendrils
+    // 2. Directional Branching Dendritic Tendrils (Boundary-Safe, No Streaks)
     for (let i = 0; i < plants.length; i++) {
       const p = plants[i];
       if (p.parent && plants.includes(p.parent)) {
-        const firing = p.phi > 0.05 || p.parent.phi > 0.05;
-        const w = p.parent.synapseWeights.get(p) || 1.0;
-        const alpha = firing ? Math.min(0.85, 0.35 * w) : Math.min(0.25, 0.08 * w);
+        const dist = Math.hypot(p.parent.x - p.x, p.parent.y - p.y);
+        // Strict boundary check: ignore wrapped cross-screen distances
+        if (dist < 45) {
+          const firing = p.phi > 0.05 || p.parent.phi > 0.05;
+          const w = p.parent.synapseWeights.get(p) || 1.0;
+          const alpha = firing ? Math.min(0.85, 0.35 * w) : Math.min(0.25, 0.08 * w);
 
-        ctx.strokeStyle = firing ? `rgba(46, 230, 160, ${alpha})` : `rgba(34, 153, 94, ${alpha})`;
-        ctx.lineWidth = firing ? 1.8 : 1.0;
+          ctx.strokeStyle = firing ? `rgba(46, 230, 160, ${alpha})` : `rgba(34, 153, 94, ${alpha})`;
+          ctx.lineWidth = firing ? 1.8 : 1.0;
 
-        const sway = Math.sin(p.swayPhase + now * 0.002) * 3.5;
-        const midX = (p.parent.x + p.x) * 0.5 + sway;
-        const midY = (p.parent.y + p.y) * 0.5;
+          const sway = Math.sin(p.swayPhase + now * 0.002) * 2.5;
+          const midX = (p.parent.x + p.x) * 0.5 + sway;
+          const midY = (p.parent.y + p.y) * 0.5;
 
-        ctx.beginPath();
-        ctx.moveTo(p.parent.x, p.parent.y);
-        ctx.quadraticCurveTo(midX, midY, p.x, p.y);
-        ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(p.parent.x, p.parent.y);
+          ctx.quadraticCurveTo(midX, midY, p.x, p.y);
+          ctx.stroke();
+        }
       }
     }
 
@@ -712,9 +722,14 @@
     }
     ctx.shadowBlur = 0;
 
-    // 4. Bioluminescent Traveling Sparks
+    // 4. Bioluminescent Traveling Sparks (Boundary Safe)
     for (let i = sparks.length - 1; i >= 0; i--) {
       const sp = sparks[i];
+      if (Math.hypot(sp.x1 - sp.x2, sp.y1 - sp.y2) > 45) {
+        sparks.splice(i, 1);
+        continue;
+      }
+
       sp.sigma += sp.v;
       if (sp.sigma >= 1.0) {
         sparks.splice(i, 1);
