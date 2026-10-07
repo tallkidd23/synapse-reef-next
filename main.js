@@ -1,5 +1,6 @@
-// Synapse Reef v2.1 - Organic Neural-Coral Simulation Engine
-// Refined Autotroph Crowding Dynamics, Organic Bezier Axon Filaments, and Soft Atmospheric Decay Puffs
+// Synapse Reef v2.2 - Organic Emergence Engine
+// Non-grid continuous plant positioning, proximity-based organic mycelial axons,
+// smooth fluid-diffusion substrate background, and inertial steering dynamics.
 
 (function () {
   'use strict';
@@ -11,14 +12,18 @@
   const drawerToggle = document.getElementById('drawerToggle');
   const drawerIndicator = document.getElementById('drawerIndicator');
 
+  // Offscreen buffer for smooth fluid PDE substrate rendering
+  const subCanvas = document.createElement('canvas');
+  const subCtx = subCanvas.getContext('2d');
+
   let width = 0;
   let height = 0;
   let dpr = window.devicePixelRatio || 1;
 
-  // Grid dimensions for discrete torus T^2
-  const CELL_SIZE = 18;
-  let COLS = 36;
-  let ROWS = 28;
+  // Discrete Torus substrate resolution (downscaled for fluid blur interpolation)
+  const SUB_SCALE = 8;
+  let SUB_COLS = 40;
+  let SUB_ROWS = 30;
 
   function resize() {
     const parent = canvas.parentElement;
@@ -32,15 +37,14 @@
     canvas.style.height = height + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const oldCols = COLS;
-    const oldRows = ROWS;
-    COLS = Math.max(18, Math.floor(width / CELL_SIZE));
-    ROWS = Math.max(14, Math.floor(height / CELL_SIZE));
+    SUB_COLS = Math.max(20, Math.floor(width / SUB_SCALE));
+    SUB_ROWS = Math.max(15, Math.floor(height / SUB_SCALE));
 
-    if (COLS !== oldCols || ROWS !== oldRows) {
-      initFields();
-      initEcosystem();
-    }
+    subCanvas.width = SUB_COLS;
+    subCanvas.height = SUB_ROWS;
+
+    initFields();
+    if (plants.length === 0) initEcosystem();
   }
 
   // Drawer interaction
@@ -64,76 +68,132 @@
   let currentClimateIdx = 0;
   let climateTick = 0;
 
-  // --- Substrate Fields (Continuous Scalar Fields on Torus T^2) ---
-  let S_field, D_field, A_field, plantGrid;
-  let W_right, W_down;
+  // --- Continuous Substrate Fields on Torus T^2 ---
+  let S_field, D_field, A_field;
 
-  function idx(x, y) {
-    const wx = (x % COLS + COLS) % COLS;
-    const wy = (y % ROWS + ROWS) % ROWS;
-    return wx + wy * COLS;
+  function subIdx(gx, gy) {
+    const x = (gx % SUB_COLS + SUB_COLS) % SUB_COLS;
+    const y = (gy % SUB_ROWS + SUB_ROWS) % SUB_ROWS;
+    return x + y * SUB_COLS;
   }
 
   function initFields() {
-    const totalCells = COLS * ROWS;
-    S_field = new Float32Array(totalCells);
-    D_field = new Float32Array(totalCells);
-    A_field = new Float32Array(totalCells);
-    plantGrid = new Array(totalCells);
-    W_right = new Float32Array(totalCells);
-    W_down = new Float32Array(totalCells);
+    const total = SUB_COLS * SUB_ROWS;
+    S_field = new Float32Array(total);
+    D_field = new Float32Array(total);
+    A_field = new Float32Array(total);
 
-    for (let i = 0; i < totalCells; i++) {
-      S_field[i] = 4.0 + Math.random() * 3.5;
+    for (let i = 0; i < total; i++) {
+      S_field[i] = 3.5 + Math.random() * 3.5;
       D_field[i] = 0.5 + Math.random() * 1.5;
       A_field[i] = 0.0;
-      plantGrid[i] = null;
-      W_right[i] = 1.0;
-      W_down[i] = 1.0;
     }
   }
 
-  // --- Autotroph Entity (Polyp Morphology with Controlled Growth) ---
-  class Autotroph {
+  // --- Non-Grid Autotrophs (Organic Polyp Morphology) ---
+  const plants = [];
+  const sparks = [];
+  const decayPuffs = [];
+  const MAX_PLANTS = 110;
+  const AXON_CONNECT_RADIUS = 34; // Max distance for proximity axon binding
+
+  class OrganicAutotroph {
     constructor(x, y, energy, generation, genome) {
       this.x = x;
       this.y = y;
-      this.energy = energy || 10.0;
+      this.energy = energy || 14.0;
       this.age = 0;
-      this.maxAge = 400 + Math.floor(Math.random() * 200);
-      this.phi = 0.0;
+      this.maxAge = 450 + Math.floor(Math.random() * 250);
+      this.phi = 0.0; // Neural membrane voltage
       this.defCalc = 0;
       this.generation = generation || 1;
-      this.breathingOffset = Math.random() * Math.PI * 2;
+      this.breathingPhase = Math.random() * Math.PI * 2;
+      this.breathingSpeed = 0.03 + Math.random() * 0.02;
+      this.synapses = new Map(); // Map<targetPlant, weight>
+
       this.genome = genome || {
-        gamma: 0.42,      // Moderate photosynthesis rate
-        mu_p: 0.14,       // Higher baseline metabolic maintenance cost
-        nu: 0.35,         // Mineral uptake rate
-        theta_rep: 34.0,  // Higher threshold required for mitotic budding
-        c_rep: 16.0,      // Higher energy cost to divide
-        kappa: 4          // Strict crowding limit (max 4 neighbors before growth halts)
+        gamma: 0.45,      // Photosynthetic efficiency
+        mu_p: 0.12,       // Maintenance cost
+        nu: 0.40,         // Mineral uptake
+        theta_rep: 32.0,  // Budding threshold
+        c_rep: 15.0,      // Budding cost
+        maxNeighbors: 5   // Crowding limit
       };
+    }
+
+    update(climate) {
+      this.age++;
+      this.phi = Math.max(0.0, this.phi - 0.035);
+      if (this.defCalc > 0) this.defCalc--;
+
+      // Relax and prune dead synapses
+      for (const [target, w] of this.synapses.entries()) {
+        if (!plants.includes(target) || Math.hypot(target.x - this.x, target.y - this.y) > AXON_CONNECT_RADIUS * 1.2) {
+          this.synapses.delete(target);
+        } else {
+          this.synapses.set(target, Math.max(1.0, w - 0.002));
+        }
+      }
+
+      // Sample substrate loam at continuous location
+      const gx = Math.floor(this.x / SUB_SCALE);
+      const gy = Math.floor(this.y / SUB_SCALE);
+      const sIndex = subIdx(gx, gy);
+
+      const u = Math.min(S_field[sIndex], this.genome.nu);
+      S_field[sIndex] -= u;
+
+      // Count local crowding within radius
+      let neighborCount = 0;
+      for (let i = 0; i < plants.length; i++) {
+        const other = plants[i];
+        if (other === this) continue;
+        const d = Math.hypot(other.x - this.x, other.y - this.y);
+        if (d < 24) neighborCount++;
+      }
+
+      // Net energy delta
+      if (neighborCount >= this.genome.maxNeighbors) {
+        this.energy -= 1.6 * this.genome.mu_p;
+      } else {
+        this.energy += (this.genome.gamma * climate.alpha_sun + u) - this.genome.mu_p;
+      }
+
+      // Clonal budding into organic radial branch
+      if (this.energy >= this.genome.theta_rep && neighborCount < 4 && plants.length < MAX_PLANTS && Math.random() < 0.2) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 16 + Math.random() * 14;
+        const childX = (this.x + Math.cos(angle) * dist + width) % width;
+        const childY = (this.y + Math.sin(angle) * dist + height) % height;
+
+        this.energy -= this.genome.c_rep;
+        const child = new OrganicAutotroph(childX, childY, 10.0, this.generation + 1);
+        plants.push(child);
+
+        // Bind immediate parent-child synapse
+        this.synapses.set(child, 1.4);
+      }
     }
   }
 
-  // --- Heterotrophs (Grazers, Apex, Benthic Crabs) ---
+  // --- Heterotrophs with Smooth Inertial Steering ---
   const grazers = [];
   const apexPredators = [];
   const benthicCrabs = [];
-  const sparks = [];
-  const decayPuffs = [];
 
-  class Grazer {
+  class OrganicGrazer {
     constructor(x, y, genome) {
       this.x = x;
       this.y = y;
+      this.vx = (Math.random() - 0.5) * 1.2;
+      this.vy = (Math.random() - 0.5) * 1.2;
       this.energy = 50.0;
       this.age = 0;
       this.genome = genome || {
-        b_eff: 3.8,
-        r_sense: 8,
+        b_eff: 3.6,
+        r_sense: 75,
         isArmored: Math.random() < 0.25,
-        speed: 1.15
+        maxSpeed: 1.4
       };
       this.pulse = Math.random() * Math.PI * 2;
     }
@@ -141,18 +201,17 @@
     update(climate) {
       this.age++;
       this.energy -= 0.11;
-      this.pulse += 0.07;
+      this.pulse += 0.08;
 
-      const gx = Math.floor(this.x / CELL_SIZE);
-      const gy = Math.floor(this.y / CELL_SIZE);
+      const gx = Math.floor(this.x / SUB_SCALE);
+      const gy = Math.floor(this.y / SUB_SCALE);
 
-      // Alarm Avoidance Gradient
+      // 1. Alarm Pheromone Avoidance Steering
       let fleeX = 0;
       let fleeY = 0;
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          if (dx === 0 && dy === 0) continue;
-          const aVal = A_field[idx(gx + dx, gy + dy)];
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dy = -2; dy <= 2; dy++) {
+          const aVal = A_field[subIdx(gx + dx, gy + dy)];
           if (aVal > 0.1) {
             fleeX -= dx * aVal;
             fleeY -= dy * aVal;
@@ -160,72 +219,78 @@
         }
       }
 
-      let targetVx = 0;
-      let targetVy = 0;
+      let desiredVx = 0;
+      let desiredVy = 0;
       const fleeMag = Math.hypot(fleeX, fleeY);
 
-      if (fleeMag > 0.4) {
-        targetVx = (fleeX / fleeMag) * (this.genome.speed * 1.3);
-        targetVy = (fleeY / fleeMag) * (this.genome.speed * 1.3);
+      if (fleeMag > 0.3) {
+        desiredVx = (fleeX / fleeMag) * (this.genome.maxSpeed * 1.4);
+        desiredVy = (fleeY / fleeMag) * (this.genome.maxSpeed * 1.4);
       } else {
-        // Foraging Attraction
-        let nearestDist = Infinity;
+        // 2. Foraging Steering toward closest autotroph within sense radius
+        let closestDist = Infinity;
         let targetPlant = null;
-        const R = this.genome.r_sense;
 
-        for (let dx = -R; dx <= R; dx++) {
-          for (let dy = -R; dy <= R; dy++) {
-            const p = plantGrid[idx(gx + dx, gy + dy)];
-            if (p && p.energy > 1.5) {
-              const d = Math.max(Math.abs(dx), Math.abs(dy));
-              if (d < nearestDist) {
-                nearestDist = d;
-                targetPlant = { x: (gx + dx) * CELL_SIZE + 9, y: (gy + dy) * CELL_SIZE + 9, p };
-              }
-            }
+        for (let i = 0; i < plants.length; i++) {
+          const p = plants[i];
+          if (p.energy <= 1.0) continue;
+          const d = Math.hypot(p.x - this.x, p.y - this.y);
+          if (d < this.genome.r_sense && d < closestDist) {
+            closestDist = d;
+            targetPlant = p;
           }
         }
 
         if (targetPlant) {
           const dx = targetPlant.x - this.x;
           const dy = targetPlant.y - this.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist > 2) {
-            targetVx = (dx / dist) * this.genome.speed;
-            targetVy = (dy / dist) * this.genome.speed;
-          }
+          desiredVx = (dx / closestDist) * this.genome.maxSpeed;
+          desiredVy = (dy / closestDist) * this.genome.maxSpeed;
 
-          if (dist < 10 && targetPlant.p.energy > 0) {
-            const defFactor = targetPlant.p.defCalc > 0 ? 0.5 : 1.0;
-            const bite = Math.min(targetPlant.p.energy, this.genome.b_eff * defFactor);
-            targetPlant.p.energy -= bite;
+          // Grazing contact
+          if (closestDist < 10 && targetPlant.energy > 0) {
+            const defFactor = targetPlant.defCalc > 0 ? 0.5 : 1.0;
+            const bite = Math.min(targetPlant.energy, this.genome.b_eff * defFactor);
+            targetPlant.energy -= bite;
             this.energy += bite * 0.9;
-            targetPlant.p.phi = 1.0;
-            propagateWave(targetPlant.p.x, targetPlant.p.y);
+            targetPlant.phi = 1.0;
+            propagateWave(targetPlant);
           }
         } else {
-          targetVx = (Math.random() - 0.5) * this.genome.speed;
-          targetVy = (Math.random() - 0.5) * this.genome.speed;
+          desiredVx = this.vx + (Math.random() - 0.5) * 0.4;
+          desiredVy = this.vy + (Math.random() - 0.5) * 0.4;
         }
       }
 
-      this.x = (this.x + targetVx + width) % width;
-      this.y = (this.y + targetVy + height) % height;
+      // Smooth inertia steering (prevents robotic twitching)
+      this.vx += (desiredVx - this.vx) * 0.08;
+      this.vy += (desiredVy - this.vy) * 0.08;
 
-      if (this.energy > 85.0 && grazers.length < 65) {
+      const spd = Math.hypot(this.vx, this.vy);
+      if (spd > this.genome.maxSpeed * 1.4) {
+        this.vx = (this.vx / spd) * (this.genome.maxSpeed * 1.4);
+        this.vy = (this.vy / spd) * (this.genome.maxSpeed * 1.4);
+      }
+
+      this.x = (this.x + this.vx + width) % width;
+      this.y = (this.y + this.vy + height) % height;
+
+      if (this.energy > 85.0 && grazers.length < 60) {
         this.energy -= 40.0;
-        grazers.push(new Grazer((this.x + 8) % width, (this.y + 8) % height, mutateGenome(this.genome)));
+        grazers.push(new OrganicGrazer((this.x + 6) % width, (this.y + 6) % height, mutateGenome(this.genome)));
       }
     }
   }
 
-  class ApexPredator {
+  class OrganicApex {
     constructor(x, y) {
       this.x = x;
       this.y = y;
-      this.energy = 85.0;
-      this.speed = 1.45;
-      this.r_hunt = 14;
+      this.vx = (Math.random() - 0.5) * 1.5;
+      this.vy = (Math.random() - 0.5) * 1.5;
+      this.energy = 90.0;
+      this.maxSpeed = 1.6;
+      this.r_hunt = 140;
       this.pulse = Math.random() * Math.PI;
     }
 
@@ -233,81 +298,90 @@
       this.energy -= 0.15;
       this.pulse += 0.05;
 
-      let nearestGrazer = null;
+      let nearest = null;
       let minDist = Infinity;
       for (let i = 0; i < grazers.length; i++) {
         const g = grazers[i];
         const dist = Math.hypot(g.x - this.x, g.y - this.y);
-        if (dist < minDist) {
+        if (dist < minDist && dist < this.r_hunt) {
           minDist = dist;
-          nearestGrazer = { g, idx: i, dist };
+          nearest = { g, idx: i, dist };
         }
       }
 
-      if (nearestGrazer && nearestGrazer.dist < this.r_hunt * CELL_SIZE) {
-        const dx = nearestGrazer.g.x - this.x;
-        const dy = nearestGrazer.g.y - this.y;
-        const dist = nearestGrazer.dist;
+      let desiredVx = this.vx;
+      let desiredVy = this.vy;
 
-        this.x = (this.x + (dx / dist) * this.speed + width) % width;
-        this.y = (this.y + (dy / dist) * this.speed + height) % height;
+      if (nearest) {
+        const dx = nearest.g.x - this.x;
+        const dy = nearest.g.y - this.y;
+        desiredVx = (dx / nearest.dist) * this.maxSpeed;
+        desiredVy = (dy / nearest.dist) * this.maxSpeed;
 
-        if (dist < 12) {
-          const gx = Math.floor(this.x / CELL_SIZE);
-          const gy = Math.floor(this.y / CELL_SIZE);
-          const cIdx = idx(gx, gy);
+        if (nearest.dist < 12) {
+          const gx = Math.floor(this.x / SUB_SCALE);
+          const gy = Math.floor(this.y / SUB_SCALE);
+          const sIndex = subIdx(gx, gy);
 
-          if (nearestGrazer.g.genome.isArmored && Math.random() < 0.65) {
-            A_field[cIdx] = Math.min(8.0, A_field[cIdx] + 2.0);
+          if (nearest.g.genome.isArmored && Math.random() < 0.65) {
+            A_field[sIndex] = Math.min(8.0, A_field[sIndex] + 2.5);
             this.energy -= 4.0;
-            this.x = (this.x - (dx / dist) * 12 + width) % width;
+            this.vx *= -0.8;
+            this.vy *= -0.8;
           } else {
-            this.energy = Math.min(120.0, this.energy + 32.0);
-            A_field[cIdx] = Math.min(8.0, A_field[cIdx] + 4.0);
-            spawnDecayPuff(nearestGrazer.g.x, nearestGrazer.g.y, 'grazer');
-            grazers.splice(nearestGrazer.idx, 1);
+            this.energy = Math.min(130.0, this.energy + 35.0);
+            A_field[sIndex] = Math.min(8.0, A_field[sIndex] + 4.5);
+            spawnDecayPuff(nearest.g.x, nearest.g.y, 'grazer');
+            grazers.splice(nearest.idx, 1);
           }
         }
       } else {
-        this.x = (this.x + (Math.random() - 0.5) * this.speed + width) % width;
-        this.y = (this.y + (Math.random() - 0.5) * this.speed + height) % height;
+        desiredVx += (Math.random() - 0.5) * 0.3;
+        desiredVy += (Math.random() - 0.5) * 0.3;
       }
 
-      if (this.energy > 145.0 && apexPredators.length < 8) {
-        this.energy -= 65.0;
-        apexPredators.push(new ApexPredator(this.x, this.y));
+      this.vx += (desiredVx - this.vx) * 0.06;
+      this.vy += (desiredVy - this.vy) * 0.06;
+      this.x = (this.x + this.vx + width) % width;
+      this.y = (this.y + this.vy + height) % height;
+
+      if (this.energy > 150.0 && apexPredators.length < 7) {
+        this.energy -= 70.0;
+        apexPredators.push(new OrganicApex(this.x, this.y));
       }
     }
   }
 
-  class BenthicCrab {
+  class OrganicBenthicCrab {
     constructor(x, y) {
       this.x = x;
       this.y = y || height * 0.78 + Math.random() * (height * 0.18);
+      this.vx = (Math.random() - 0.5) * 0.6;
       this.energy = 55.0;
-      this.speed = 0.55;
-      this.p_recycle = 1.3;
+      this.p_recycle = 1.4;
     }
 
     update() {
       this.energy -= 0.07;
-      const gx = Math.floor(this.x / CELL_SIZE);
-      const gy = Math.floor(this.y / CELL_SIZE);
-      const cIdx = idx(gx, gy);
+      const gx = Math.floor(this.x / SUB_SCALE);
+      const gy = Math.floor(this.y / SUB_SCALE);
+      const sIndex = subIdx(gx, gy);
 
-      if (D_field[cIdx] > 0.2) {
-        const dScav = Math.min(D_field[cIdx], this.p_recycle);
-        D_field[cIdx] -= dScav;
-        S_field[cIdx] = Math.min(10.0, S_field[cIdx] + 1.6 * dScav);
+      if (D_field[sIndex] > 0.2) {
+        const dScav = Math.min(D_field[sIndex], this.p_recycle);
+        D_field[sIndex] -= dScav;
+        S_field[sIndex] = Math.min(10.0, S_field[sIndex] + 1.6 * dScav);
         this.energy = Math.min(95.0, this.energy + 1.2 * dScav);
       }
 
-      this.x = (this.x + (Math.random() - 0.48) * this.speed + width) % width;
-      this.y = Math.min(height - 8, Math.max(height * 0.65, this.y + (Math.random() - 0.5) * 0.4));
+      this.vx += (Math.random() - 0.5) * 0.15;
+      this.vx = Math.max(-0.65, Math.min(0.65, this.vx));
+      this.x = (this.x + this.vx + width) % width;
+      this.y = Math.min(height - 8, Math.max(height * 0.65, this.y + (Math.random() - 0.5) * 0.3));
 
       if (this.energy > 85.0 && benthicCrabs.length < 28) {
         this.energy -= 45.0;
-        benthicCrabs.push(new BenthicCrab(this.x, this.y));
+        benthicCrabs.push(new OrganicBenthicCrab(this.x, this.y));
       }
     }
   }
@@ -316,213 +390,144 @@
     const mut = () => (1 + (Math.random() * 0.2 - 0.10));
     return {
       b_eff: Math.max(1.0, g.b_eff * mut()),
-      r_sense: Math.min(12, Math.max(3, Math.round(g.r_sense * mut()))),
+      r_sense: Math.min(120, Math.max(40, g.r_sense * mut())),
       isArmored: Math.random() < 0.15 ? !g.isArmored : g.isArmored,
-      speed: Math.max(0.6, Math.min(2.0, g.speed * mut()))
+      maxSpeed: Math.max(0.7, Math.min(2.1, g.maxSpeed * mut()))
     };
   }
 
   function spawnDecayPuff(x, y, type) {
     const color = type === 'apex' ? '231, 76, 60' : type === 'crab' ? '230, 126, 34' : '46, 204, 113';
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       decayPuffs.push({
         x: x + (Math.random() - 0.5) * 6,
         y: y + (Math.random() - 0.5) * 6,
-        vx: (Math.random() - 0.5) * 0.6,
-        vy: (Math.random() - 0.5) * 0.6 - 0.2,
-        r: 3 + Math.random() * 4,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5 - 0.2,
+        r: 3.5 + Math.random() * 4.5,
         alpha: 0.65,
         color
       });
     }
   }
 
-  // --- Neural Axon Potentials & Wave Propagation ---
-  function propagateWave(originX, originY) {
-    const queue = [{ x: originX, y: originY, phi: 1.0, depth: 0 }];
+  // --- Organic Action Potential Propagation ---
+  function propagateWave(startPlant) {
+    const queue = [{ plant: startPlant, phi: 1.0, depth: 0 }];
     const visited = new Set();
 
     while (queue.length > 0) {
-      const { x, y, phi, depth } = queue.shift();
-      if (depth > 5 || phi < 0.08) continue;
-      const key = `${x},${y}`;
-      if (visited.has(key)) continue;
-      visited.add(key);
+      const { plant, phi, depth } = queue.shift();
+      if (depth > 6 || phi < 0.08) continue;
+      if (visited.has(plant)) continue;
+      visited.add(plant);
 
-      const pCurr = plantGrid[idx(x, y)];
-      if (pCurr) pCurr.phi = Math.max(pCurr.phi, phi);
+      plant.phi = Math.max(plant.phi, phi);
 
-      const neighbors = [
-        { nx: (x + 1 + COLS) % COLS, ny: y, edge: 'right', ex: x, ey: y },
-        { nx: (x - 1 + COLS) % COLS, ny: y, edge: 'right', ex: (x - 1 + COLS) % COLS, ey: y },
-        { nx: x, ny: (y + 1 + ROWS) % ROWS, edge: 'down', ex: x, ey: y },
-        { nx: x, ny: (y - 1 + ROWS) % ROWS, edge: 'down', ex: x, ey: (y - 1 + ROWS) % ROWS }
-      ];
+      // Connect or reinforce proximity synapses on the fly
+      for (let i = 0; i < plants.length; i++) {
+        const other = plants[i];
+        if (other === plant) continue;
+        const dist = Math.hypot(other.x - plant.x, other.y - plant.y);
 
-      for (let i = 0; i < neighbors.length; i++) {
-        const { nx, ny, edge, ex, ey } = neighbors[i];
-        const nextPlant = plantGrid[idx(nx, ny)];
-        if (nextPlant) {
-          const edgeIdx = idx(ex, ey);
-          let w = edge === 'right' ? W_right[edgeIdx] : W_down[edgeIdx];
-          const nextPhi = phi * 0.68 * Math.min(1.2, w);
+        if (dist <= AXON_CONNECT_RADIUS) {
+          let w = plant.synapses.get(other) || 1.0;
+          const nextPhi = phi * 0.70 * Math.min(1.2, w);
 
-          if (edge === 'right') {
-            W_right[edgeIdx] = Math.min(3.0, W_right[edgeIdx] + 0.08 * phi * nextPhi);
-          } else {
-            W_down[edgeIdx] = Math.min(3.0, W_down[edgeIdx] + 0.08 * phi * nextPhi);
-          }
+          // Hebbian weight reinforcement
+          plant.synapses.set(other, Math.min(3.0, w + 0.10 * phi * nextPhi));
 
+          // Spawn traveling bioluminescent spark
           sparks.push({
-            x1: x * CELL_SIZE + 9,
-            y1: y * CELL_SIZE + 9,
-            x2: nx * CELL_SIZE + 9,
-            y2: ny * CELL_SIZE + 9,
+            x1: plant.x,
+            y1: plant.y,
+            x2: other.x,
+            y2: other.y,
             sigma: 0,
-            v: 0.14 + Math.random() * 0.05,
-            phi: nextPhi
+            v: 0.12 + Math.random() * 0.05
           });
 
-          queue.push({ x: nx, y: ny, phi: nextPhi, depth: depth + 1 });
+          queue.push({ plant: other, phi: nextPhi, depth: depth + 1 });
         }
       }
     }
   }
 
-  // --- Initial Ecosystem Seeding ---
+  // --- Ecosystem Seeding ---
   function initEcosystem() {
+    plants.length = 0;
     grazers.length = 0;
     apexPredators.length = 0;
     benthicCrabs.length = 0;
     sparks.length = 0;
     decayPuffs.length = 0;
 
-    for (let c = 0; c < COLS; c++) {
-      for (let r = 0; r < ROWS; r++) {
-        if (Math.random() < 0.11) {
-          plantGrid[idx(c, r)] = new Autotroph(c, r, 12 + Math.random() * 8);
-        } else {
-          plantGrid[idx(c, r)] = null;
-        }
+    // Seed 4-6 natural coral reef clusters
+    const clusterCount = 5;
+    for (let k = 0; k < clusterCount; k++) {
+      const cx = 40 + Math.random() * (width - 80);
+      const cy = 40 + Math.random() * (height - 80);
+      const count = 6 + Math.floor(Math.random() * 6);
+      for (let j = 0; j < count; j++) {
+        const rAngle = Math.random() * Math.PI * 2;
+        const rDist = Math.random() * 32;
+        plants.push(new OrganicAutotroph(
+          (cx + Math.cos(rAngle) * rDist + width) % width,
+          (cy + Math.sin(rAngle) * rDist + height) % height,
+          12 + Math.random() * 8
+        ));
       }
     }
 
-    for (let i = 0; i < 35; i++) {
-      grazers.push(new Grazer(Math.random() * width, Math.random() * height));
-    }
-    for (let i = 0; i < 16; i++) {
-      benthicCrabs.push(new BenthicCrab(Math.random() * width));
-    }
-    for (let i = 0; i < 4; i++) {
-      apexPredators.push(new ApexPredator(Math.random() * width, Math.random() * height));
-    }
+    for (let i = 0; i < 35; i++) grazers.push(new OrganicGrazer(Math.random() * width, Math.random() * height));
+    for (let i = 0; i < 16; i++) benthicCrabs.push(new OrganicBenthicCrab(Math.random() * width));
+    for (let i = 0; i < 4; i++) apexPredators.push(new OrganicApex(Math.random() * width, Math.random() * height));
   }
 
-  // --- Continuous Substrate PDE & Controlled Autotroph Reaction Step ---
-  function stepSimulationFields(climate) {
-    const totalCells = COLS * ROWS;
-    const nextA = new Float32Array(totalCells);
+  // --- Fluid PDE Diffusion Step ---
+  function stepSubstrates(climate) {
+    const total = SUB_COLS * SUB_ROWS;
+    const nextA = new Float32Array(total);
 
-    for (let x = 0; x < COLS; x++) {
-      for (let y = 0; y < ROWS; y++) {
-        const cIdx = idx(x, y);
+    for (let x = 0; x < SUB_COLS; x++) {
+      for (let y = 0; y < SUB_ROWS; y++) {
+        const idx = subIdx(x, y);
 
-        // 1. Detritus mineralization
-        const dVal = D_field[cIdx];
+        // Mineralization
+        const dVal = D_field[idx];
         const deltaD = -0.015 * dVal + climate.beta_climate;
-        D_field[cIdx] = Math.max(0.0, dVal + deltaD);
-        S_field[cIdx] = Math.min(10.0, S_field[cIdx] + 1.3 * Math.abs(deltaD));
+        D_field[idx] = Math.max(0.0, dVal + deltaD);
+        S_field[idx] = Math.min(10.0, S_field[idx] + 1.3 * Math.abs(deltaD));
 
-        // 2. Alarm Pheromone Diffusion (Moore N8) & Decay
+        // Isotropic Pheromone Diffusion (Moore N8)
         let sumA = 0;
         for (let dx = -1; dx <= 1; dx++) {
           for (let dy = -1; dy <= 1; dy++) {
             if (dx === 0 && dy === 0) continue;
-            sumA += A_field[idx(x + dx, y + dy)];
+            sumA += A_field[subIdx(x + dx, y + dy)];
           }
         }
-        nextA[cIdx] = 0.40 * A_field[cIdx] + (0.15 / 8.0) * sumA;
-
-        // 3. Synaptic Plasticity Decay
-        W_right[cIdx] = Math.max(1.0, W_right[cIdx] - 0.003);
-        W_down[cIdx] = Math.max(1.0, W_down[cIdx] - 0.003);
-
-        // 4. Autotroph Update with Strict Crowding Limits
-        const plant = plantGrid[cIdx];
-        if (plant) {
-          plant.age++;
-          plant.phi = Math.max(0.0, plant.phi - 0.04);
-          if (plant.defCalc > 0) plant.defCalc--;
-
-          // Canopy crowding kernel K(p) (Moore N8)
-          let kCount = 0;
-          for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-              if (dx === 0 && dy === 0) continue;
-              if (plantGrid[idx(x + dx, y + dy)]) kCount++;
-            }
-          }
-
-          // Soil mineral uptake
-          const u = Math.min(S_field[cIdx], plant.genome.nu);
-          S_field[cIdx] -= u;
-
-          // Energy balance
-          if (kCount >= plant.genome.kappa) {
-            plant.energy -= 1.6 * plant.genome.mu_p;
-          } else {
-            plant.energy += (plant.genome.gamma * climate.alpha_sun + u) - plant.genome.mu_p;
-          }
-
-          // Mitotic Budding
-          if (plant.energy >= plant.genome.theta_rep && kCount < 3 && Math.random() < 0.25) {
-            const emptySpots = [];
-            for (let dx = -1; dx <= 1; dx++) {
-              for (let dy = -1; dy <= 1; dy++) {
-                if (dx === 0 && dy === 0) continue;
-                const nIdx = idx(x + dx, y + dy);
-                if (!plantGrid[nIdx]) emptySpots.push({ x: (x + dx + COLS) % COLS, y: (y + dy + ROWS) % ROWS, nIdx });
-              }
-            }
-            if (emptySpots.length > 0) {
-              const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
-              plant.energy -= plant.genome.c_rep;
-              plantGrid[spot.nIdx] = new Autotroph(spot.x, spot.y, 10.0, plant.generation + 1);
-            }
-          }
-
-          // Senescence & Biomass Fall
-          if (plant.energy <= 0 || plant.age > plant.maxAge) {
-            plantGrid[cIdx] = null;
-            D_field[cIdx] = Math.min(8.0, D_field[cIdx] + 1.2);
-            spawnDecayPuff(x * CELL_SIZE + 9, y * CELL_SIZE + 9, 'flora');
-          }
-        }
+        nextA[idx] = 0.42 * A_field[idx] + (0.16 / 8.0) * sumA;
       }
     }
-
     A_field.set(nextA);
   }
 
   // --- Telemetry Sync ---
   function updateTelemetryUI(climate) {
     let totalPlantMass = 0;
-    let plantCount = 0;
     let totalSoilMass = 0;
     let totalPhi = 0;
 
-    for (let i = 0; i < plantGrid.length; i++) {
-      totalSoilMass += S_field[i];
-      if (plantGrid[i]) {
-        plantCount++;
-        totalPlantMass += plantGrid[i].energy * 10;
-        totalPhi += plantGrid[i].phi;
-      }
+    for (let i = 0; i < S_field.length; i++) totalSoilMass += S_field[i];
+    for (let i = 0; i < plants.length; i++) {
+      totalPlantMass += plants[i].energy * 10;
+      totalPhi += plants[i].phi;
     }
 
     const totalBiomass = totalPlantMass + grazers.length * 15 + benthicCrabs.length * 10 + apexPredators.length * 40;
-    const meanVoltage = plantCount > 0 ? (totalPhi / plantCount).toFixed(2) : '0.00';
-    const nutrientIdx = (totalSoilMass / (COLS * ROWS)).toFixed(2);
+    const meanVoltage = plants.length > 0 ? (totalPhi / plants.length).toFixed(2) : '0.00';
+    const nutrientIdx = (totalSoilMass / (SUB_COLS * SUB_ROWS)).toFixed(2);
 
     const hudRegime = document.getElementById('hudRegime');
     const hudBiomass = document.getElementById('hudBiomass');
@@ -538,7 +543,7 @@
 
     if (hudRegime) hudRegime.textContent = climate.name;
     if (hudBiomass) hudBiomass.textContent = Math.round(totalBiomass);
-    if (hudEntities) hudEntities.textContent = plantCount + grazers.length + benthicCrabs.length + apexPredators.length;
+    if (hudEntities) hudEntities.textContent = plants.length + grazers.length + benthicCrabs.length + apexPredators.length;
 
     if (mFlora) mFlora.textContent = Math.round(totalPlantMass);
     if (mGrazer) mGrazer.textContent = grazers.length;
@@ -562,13 +567,28 @@
 
     if (!isPaused) {
       climateTick++;
-      if (climateTick > 400) {
+      if (climateTick > 450) {
         climateTick = 0;
         currentClimateIdx = (currentClimateIdx + 1) % CLIMATES.length;
       }
 
-      stepSimulationFields(climate);
+      stepSubstrates(climate);
 
+      // Step plants
+      for (let i = plants.length - 1; i >= 0; i--) {
+        const p = plants[i];
+        p.update(climate);
+        if (p.energy <= 0 || p.age > p.maxAge) {
+          const gx = Math.floor(p.x / SUB_SCALE);
+          const gy = Math.floor(p.y / SUB_SCALE);
+          const sIndex = subIdx(gx, gy);
+          D_field[sIndex] = Math.min(8.0, D_field[sIndex] + 1.2);
+          spawnDecayPuff(p.x, p.y, 'flora');
+          plants.splice(i, 1);
+        }
+      }
+
+      // Step heterotrophs
       for (let i = grazers.length - 1; i >= 0; i--) {
         grazers[i].update(climate);
         if (grazers[i].energy <= 0) {
@@ -599,76 +619,73 @@
       }
     }
 
-    // --- ORGANIC DRAWING STAGE ---
+    // --- DRAWING STAGE ---
 
-    // 1. Substrate Heat & Nutrient Map
+    // 1. Smooth Fluid PDE Substrate Map (Rendered via bilinear upscaled buffer)
     if (showSubstrate) {
-      for (let x = 0; x < COLS; x++) {
-        for (let y = 0; y < ROWS; y++) {
-          const cIdx = idx(x, y);
-          const sVal = S_field[cIdx] / 10.0;
-          const dVal = D_field[cIdx] / 8.0;
-          const aVal = A_field[cIdx] / 6.0;
+      const imgData = subCtx.createImageData(SUB_COLS, SUB_ROWS);
+      const data = imgData.data;
 
-          if (sVal > 0.05 || dVal > 0.05 || aVal > 0.05) {
-            ctx.fillStyle = `rgba(${Math.floor(aVal * 200 + 12)}, ${Math.floor(sVal * 140 + 20)}, ${Math.floor(dVal * 100 + 15)}, ${0.08 + sVal * 0.14})`;
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-          }
+      for (let y = 0; y < SUB_ROWS; y++) {
+        for (let x = 0; x < SUB_COLS; x++) {
+          const i = subIdx(x, y);
+          const pIdx = (x + y * SUB_COLS) * 4;
+          const sVal = S_field[i] / 10.0;
+          const dVal = D_field[i] / 8.0;
+          const aVal = A_field[i] / 6.0;
+
+          data[pIdx] = Math.min(255, Math.floor(aVal * 220 + 6));       // R (Alarm)
+          data[pIdx + 1] = Math.min(255, Math.floor(sVal * 150 + 20));  // G (Minerals)
+          data[pIdx + 2] = Math.min(255, Math.floor(dVal * 110 + 12));  // B (Detritus)
+          data[pIdx + 3] = Math.min(255, Math.floor((sVal * 0.18 + dVal * 0.12 + aVal * 0.3) * 255)); // Alpha
         }
+      }
+
+      subCtx.putImageData(imgData, 0, 0);
+
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(subCanvas, 0, 0, width, height);
+      ctx.restore();
+    }
+
+    // 2. Organic Mycelial Axons (Smooth proximity connections)
+    for (let i = 0; i < plants.length; i++) {
+      const p1 = plants[i];
+      for (const [p2, w] of p1.synapses.entries()) {
+        const firing = p1.phi > 0.05 || p2.phi > 0.05;
+        const alpha = firing ? Math.min(0.75, 0.28 * w) : Math.min(0.18, 0.05 * w);
+        ctx.strokeStyle = firing ? `rgba(46, 230, 150, ${alpha})` : `rgba(30, 140, 85, ${alpha})`;
+        ctx.lineWidth = firing ? 1.6 : 0.8;
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        const midX = (p1.x + p2.x) * 0.5 + Math.sin(p1.breathingPhase) * 2;
+        const midY = (p1.y + p2.y) * 0.5 + Math.cos(p1.breathingPhase) * 2;
+        ctx.quadraticCurveTo(midX, midY, p2.x, p2.y);
+        ctx.stroke();
       }
     }
 
-    // 2. Soft Organic Axon Filaments
-    for (let x = 0; x < COLS; x++) {
-      for (let y = 0; y < ROWS; y++) {
-        const p = plantGrid[idx(x, y)];
-        if (p) {
-          const px = x * CELL_SIZE + 9;
-          const py = y * CELL_SIZE + 9;
+    // 3. Autotroph Polyps (Continuous non-grid nodes)
+    for (let i = 0; i < plants.length; i++) {
+      const p = plants[i];
+      p.breathingPhase += p.breathingSpeed;
+      const breath = Math.sin(p.breathingPhase) * 0.6;
+      const r = Math.min(6.0, 2.2 + (p.energy / 16.0) + p.phi * 2.2 + breath);
 
-          // Right Axon Curve
-          const pr = plantGrid[idx(x + 1, y)];
-          if (pr && x + 1 < COLS) {
-            const w = W_right[idx(x, y)];
-            const firing = p.phi > 0.05 || pr.phi > 0.05;
-            const alpha = firing ? Math.min(0.7, 0.25 * w) : Math.min(0.18, 0.05 * w);
-            ctx.strokeStyle = firing ? `rgba(46, 230, 150, ${alpha})` : `rgba(30, 140, 85, ${alpha})`;
-            ctx.lineWidth = firing ? 1.5 : 0.8;
-            ctx.beginPath();
-            ctx.moveTo(px, py);
-            ctx.quadraticCurveTo(px + CELL_SIZE * 0.5, py + (Math.sin(p.breathingOffset) * 2), px + CELL_SIZE, py);
-            ctx.stroke();
-          }
-
-          // Down Axon Curve
-          const pd = plantGrid[idx(x, y + 1)];
-          if (pd && y + 1 < ROWS) {
-            const w = W_down[idx(x, y)];
-            const firing = p.phi > 0.05 || pd.phi > 0.05;
-            const alpha = firing ? Math.min(0.7, 0.25 * w) : Math.min(0.18, 0.05 * w);
-            ctx.strokeStyle = firing ? `rgba(46, 230, 150, ${alpha})` : `rgba(30, 140, 85, ${alpha})`;
-            ctx.lineWidth = firing ? 1.5 : 0.8;
-            ctx.beginPath();
-            ctx.moveTo(px, py);
-            ctx.quadraticCurveTo(px + (Math.cos(p.breathingOffset) * 2), py + CELL_SIZE * 0.5, px, py + CELL_SIZE);
-            ctx.stroke();
-          }
-
-          // Autotroph Polyp
-          const breath = Math.sin(p.breathingOffset + now * 0.003) * 0.6;
-          const radius = Math.min(5.5, 2.2 + (p.energy / 16.0) + p.phi * 2.2 + breath);
-          ctx.beginPath();
-          ctx.fillStyle = p.phi > 0.1 ? '#a3e4d7' : '#2ecc71';
-          ctx.shadowColor = p.phi > 0.1 ? '#48c9b0' : 'rgba(46, 204, 113, 0.4)';
-          ctx.shadowBlur = p.phi > 0.1 ? 8 : 2;
-          ctx.arc(px, py, radius, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
+      ctx.beginPath();
+      ctx.fillStyle = p.phi > 0.1 ? '#a3e4d7' : '#2ecc71';
+      ctx.shadowColor = p.phi > 0.1 ? '#48c9b0' : 'rgba(46, 204, 113, 0.4)';
+      ctx.shadowBlur = p.phi > 0.1 ? 8 : 2;
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.shadowBlur = 0;
 
-    // 3. Bioluminescent Traveling Sparks
+    // 4. Bioluminescent Traveling Sparks
     for (let i = sparks.length - 1; i >= 0; i--) {
       const sp = sparks[i];
       sp.sigma += sp.v;
@@ -687,7 +704,7 @@
     }
     ctx.shadowBlur = 0;
 
-    // 4. Benthic Crabs
+    // 5. Benthic Crabs
     for (let i = 0; i < benthicCrabs.length; i++) {
       const b = benthicCrabs[i];
       ctx.beginPath();
@@ -696,7 +713,7 @@
       ctx.fill();
     }
 
-    // 5. Grazers
+    // 6. Grazers
     for (let i = 0; i < grazers.length; i++) {
       const g = grazers[i];
       const glow = Math.sin(g.pulse) * 1.2;
@@ -709,7 +726,7 @@
     }
     ctx.shadowBlur = 0;
 
-    // 6. Apex Predators
+    // 7. Apex Predators
     for (let i = 0; i < apexPredators.length; i++) {
       const a = apexPredators[i];
       ctx.beginPath();
@@ -721,7 +738,7 @@
     }
     ctx.shadowBlur = 0;
 
-    // 7. Soft Atmospheric Decay Puffs
+    // 8. Soft Atmospheric Decay Puffs
     for (let i = decayPuffs.length - 1; i >= 0; i--) {
       const p = decayPuffs[i];
       p.x += p.vx;
@@ -755,7 +772,7 @@
   if (btnStep) {
     btnStep.addEventListener('click', () => {
       const climate = CLIMATES[currentClimateIdx];
-      stepSimulationFields(climate);
+      stepSubstrates(climate);
       updateTelemetryUI(climate);
     });
   }
@@ -774,10 +791,8 @@
       for (let i = 0; i < A_field.length; i++) {
         if (Math.random() < 0.25) A_field[i] = Math.min(8.0, A_field[i] + 3.0);
       }
-      for (let i = 0; i < plantGrid.length; i++) {
-        if (plantGrid[i] && Math.random() < 0.15) {
-          plantGrid[i].energy -= 8.0;
-        }
+      for (let i = 0; i < plants.length; i++) {
+        if (Math.random() < 0.2) plants[i].energy -= 8.0;
       }
     });
   }
@@ -790,7 +805,7 @@
     });
   }
 
-  // Boot
+  // Initial boot
   resize();
   initFields();
   initEcosystem();
