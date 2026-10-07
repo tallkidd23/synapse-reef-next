@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synapse Reef v2 — Replay Verification</title>
+  <style>
+    body { margin: 0; padding: 2rem; background: #06110c; color: #e9f4df; font: 16px/1.5 system-ui, sans-serif; }
+    main { max-width: 900px; margin: auto; }
+    pre { overflow: auto; padding: 1rem; border: 1px solid #294e37; border-radius: 1rem; background: #0b2218; }
+    .pass { color: #b8e68f; }
+    .fail { color: #ff9b8e; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Replay verification</h1>
+    <p id="status">Running deterministic checks…</p>
+    <pre id="report"></pre>
+  </main>
+  <script src="phase-1-foundation.js"></script>
+  <script src="replay-harness.js"></script>
+  <script>
+    const result = SynapseReplay.verify();
+    const status = document.getElementById('status');
+    status.textContent = result.passed ? 'PASS — deterministic replay foundation is healthy.' : 'FAIL — inspect the report.';
+    status.className = result.passed ? 'pass' : 'fail';
+    document.getElementById('report').textContent = JSON.stringify({
+      passed: result.passed,
+      seed: result.seed,
+      steps: result.steps,
+      identical: result.identical,
+      divergent: result.divergent,
+      bounded: result.bounded,
+    }, null, 2);
+  </script>
+</body>
+</html>
