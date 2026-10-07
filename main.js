@@ -23,11 +23,16 @@ const diagnosticStats = {
   frame: document.getElementById('frameDiag'),
   events: document.getElementById('eventsDiag'),
   drops: document.getElementById('dropsDiag'),
+  births: document.getElementById('birthsDiag'),
+  deaths: document.getElementById('deathsDiag'),
+  feedings: document.getElementById('feedingsDiag'),
+  fingerprint: document.getElementById('fingerprintDiag'),
 };
 
 let world;
 let lastTime = performance.now();
 let speed = 1;
+let activeSeed = 482901;
 
 const TAU = Math.PI * 2;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -74,8 +79,20 @@ function makeHerbivore() {
   };
 }
 
-function reset(seed = 482901) {
-  SynapseFoundation.create({ seed });
+function worldFingerprint() {
+  return SynapseFoundation.fingerprint({
+    seed: activeSeed,
+    time: Number(world.time.toFixed(6)),
+    day: Number(world.day.toFixed(6)),
+    temperature: Number(world.temperature.toFixed(6)),
+    plants: world.plants.map((plant) => ({ ...plant })).sort((a, b) => a.id.localeCompare(b.id)),
+    herbivores: world.herbivores.map((herbivore) => ({ ...herbivore })).sort((a, b) => a.id.localeCompare(b.id)),
+  });
+}
+
+function reset(seed = activeSeed) {
+  activeSeed = seed;
+  SynapseFoundation.create({ seed: activeSeed });
   world = {
     width: canvas.clientWidth,
     height: canvas.clientHeight,
@@ -89,14 +106,14 @@ function reset(seed = 482901) {
       { day: 1, text: 'Nine grazers begin mapping the young growth.' },
     ],
   };
-  SynapseFoundation.record('reset', { seed });
+  SynapseFoundation.record('reset', { seed: activeSeed });
   renderChronicle();
 }
 
-function addChronicle(text, type = 'chronicle') {
+function addChronicle(text, type = 'chronicle', payload = {}) {
   world.chronicle.unshift({ day: Math.floor(world.day), text });
   world.chronicle = world.chronicle.slice(0, 8);
-  SynapseFoundation.record(type, { text });
+  SynapseFoundation.record(type, { text, ...payload });
   renderChronicle();
 }
 
@@ -110,6 +127,7 @@ function simulate(dt) {
   world.time += dt;
   world.day += dt / 12;
   world.temperature = 24 + Math.sin(world.time / 9) * 2.2;
+  let feedingCount = 0;
 
   for (const plant of world.plants) {
     plant.age += dt;
@@ -136,22 +154,23 @@ function simulate(dt) {
     if (nearby && nearby.growth > 0.25) {
       nearby.growth = clamp(nearby.growth - dt * 0.08, 0.08, 1);
       herbivore.energy = clamp(herbivore.energy + dt * 0.03, 0, 1);
-      SynapseFoundation.record('feeding', { actor: herbivore.id, target: nearby.id });
+      feedingCount += 1;
     }
 
     if (herbivore.energy > 0.88 && SynapseFoundation.random() < dt * 0.002 && world.herbivores.length < 24) {
       const offspring = makeHerbivore();
       world.herbivores.push(offspring);
       herbivore.energy *= 0.55;
-      addChronicle('A new grazer joins the moving constellation.', 'birth');
-      SynapseFoundation.record('birth', { parent: herbivore.id, child: offspring.id });
+      addChronicle('A new grazer joins the moving constellation.', 'birth', { parent: herbivore.id, child: offspring.id });
       AudioSafety.chirp({ frequency: 620, key: 'birth' });
     }
   }
 
+  if (feedingCount) SynapseFoundation.record('feeding', { count: feedingCount });
+
   const beforePlants = world.plants.length;
   world.plants = world.plants.filter((plant) => plant.age < plant.maxAge && plant.growth > 0.03);
-  if (world.plants.length < beforePlants) addChronicle('A patch of old growth returns to the soil.', 'death');
+  if (world.plants.length < beforePlants) addChronicle('A patch of old growth returns to the soil.', 'death', { count: beforePlants - world.plants.length });
 
   if (SynapseFoundation.random() < dt * 0.035 && world.plants.length < 80) {
     const plant = makePlant();
@@ -161,7 +180,7 @@ function simulate(dt) {
 
   const beforeHerbivores = world.herbivores.length;
   world.herbivores = world.herbivores.filter((herbivore) => herbivore.age < herbivore.maxAge && herbivore.energy > 0);
-  if (world.herbivores.length < beforeHerbivores) addChronicle('One quiet life-cycle closes beneath the canopy.', 'death');
+  if (world.herbivores.length < beforeHerbivores) addChronicle('One quiet life-cycle closes beneath the canopy.', 'death', { count: beforeHerbivores - world.herbivores.length });
 
   if (Math.floor(world.day) !== Math.floor(world.day - dt / 12)) {
     addChronicle(pick([
@@ -231,6 +250,10 @@ function renderDiagnostics() {
   diagnosticStats.frame.textContent = `${snapshot.metrics.frameMs.toFixed(2)}ms`;
   diagnosticStats.events.textContent = snapshot.eventCount;
   diagnosticStats.drops.textContent = snapshot.metrics.droppedSteps;
+  diagnosticStats.births.textContent = snapshot.counters.births;
+  diagnosticStats.deaths.textContent = snapshot.counters.deaths;
+  diagnosticStats.feedings.textContent = snapshot.counters.feedings;
+  diagnosticStats.fingerprint.textContent = worldFingerprint();
 }
 
 function render() {
@@ -271,7 +294,7 @@ stepBtn.addEventListener('click', () => {
 });
 
 resetBtn.addEventListener('click', () => {
-  reset();
+  reset(activeSeed);
   addChronicle('The habitat is reset, carrying only its possibility forward.');
 });
 

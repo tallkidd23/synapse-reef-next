@@ -1,5 +1,5 @@
 // Synapse Reef v2 Phase 1 foundation: deterministic randomness, fixed-step time,
-// bounded event history, and runtime diagnostics. Presentation remains a consumer.
+// bounded event history, replay fingerprints, and runtime diagnostics.
 (() => {
   const MAX_EVENTS = 240;
   const DEFAULT_SEED = 482901;
@@ -26,6 +26,22 @@
     };
   }
 
+  function stableStringify(value) {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+  }
+
+  function fingerprint(value) {
+    const text = stableStringify(value);
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i += 1) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+  }
+
   function create(options = {}) {
     const seed = options.seed ?? DEFAULT_SEED;
     state = {
@@ -38,15 +54,11 @@
       maxSubSteps: options.maxSubSteps ?? 5,
       running: true,
       speed: 1,
+      sequence: 0,
       events: [],
       nextEntityId: 1,
-      metrics: {
-        frames: 0,
-        frameMs: 0,
-        droppedSteps: 0,
-        births: 0,
-        deaths: 0,
-      },
+      counters: { births: 0, deaths: 0, feedings: 0 },
+      metrics: { frames: 0, frameMs: 0, droppedSteps: 0 },
     };
     return api;
   }
@@ -54,7 +66,8 @@
   function record(type, payload = {}) {
     if (!state) return null;
     const event = {
-      id: `${state.tick}-${state.events.length + 1}`,
+      sequence: ++state.sequence,
+      id: `${state.tick}:${state.sequence}`,
       tick: state.tick,
       time: Number(state.elapsed.toFixed(4)),
       type,
@@ -62,8 +75,9 @@
     };
     state.events.push(event);
     if (state.events.length > MAX_EVENTS) state.events.splice(0, state.events.length - MAX_EVENTS);
-    if (type === 'birth') state.metrics.births += 1;
-    if (type === 'death') state.metrics.deaths += 1;
+    if (type === 'birth') state.counters.births += 1;
+    if (type === 'death') state.counters.deaths += 1;
+    if (type === 'feeding') state.counters.feedings += payload.count || 1;
     return event;
   }
 
@@ -72,8 +86,10 @@
     const frameStart = performance.now();
     const delta = Math.min(Math.max(realDelta, 0), 0.25) * state.speed;
     state.metrics.frames += 1;
-    state.metrics.frameMs = performance.now() - frameStart;
-    if (!state.running) return 0;
+    if (!state.running) {
+      state.metrics.frameMs = performance.now() - frameStart;
+      return 0;
+    }
 
     state.accumulator += delta;
     let steps = 0;
@@ -121,8 +137,11 @@
       running: state.running,
       speed: state.speed,
       eventCount: state.events.length,
+      counters: { ...state.counters },
       metrics: { ...state.metrics },
     }),
+    fingerprint,
+    stableStringify,
     events: () => state?.events.slice() ?? [],
   };
 

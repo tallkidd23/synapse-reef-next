@@ -105,7 +105,7 @@ input[type="range"] { accent-color: var(--accent); }
   border-radius: 1.2rem;
 }
 
-.diagnostics { grid-template-columns: repeat(6, 1fr); }
+.diagnostics { grid-template-columns: repeat(5, 1fr); }
 
 .stats div,
 .diagnostics div {
@@ -121,7 +121,7 @@ input[type="range"] { accent-color: var(--accent); }
 .diagnostics span { color: var(--muted); font-size: 0.78rem; }
 .stats strong,
 .diagnostics strong { margin-top: 0.3rem; color: var(--accent); font-size: 1.3rem; }
-.diagnostics strong { font-size: 1rem; }
+.diagnostics strong { font-size: 1rem; overflow-wrap: anywhere; }
 
 .world-card {
   height: min(62vw, 570px);
