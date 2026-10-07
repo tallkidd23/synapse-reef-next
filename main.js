@@ -1,6 +1,5 @@
-// Synapse Reef v2.0 - Core Simulation Engine
-// Full Implementation of Continuous Substrates, Reaction-Diffusion Autotrophs,
-// Hebbian Axon Graph Potentials, Lotka-Volterra Heterotrophs, and Telemetry Phase Space.
+// Synapse Reef v2.1 - Organic Neural-Coral Simulation Engine
+// Refined Autotroph Crowding Dynamics, Organic Bezier Axon Filaments, and Soft Atmospheric Decay Puffs
 
 (function () {
   'use strict';
@@ -17,9 +16,9 @@
   let dpr = window.devicePixelRatio || 1;
 
   // Grid dimensions for discrete torus T^2
-  const CELL_SIZE = 16;
-  let COLS = 40;
-  let ROWS = 30;
+  const CELL_SIZE = 18;
+  let COLS = 36;
+  let ROWS = 28;
 
   function resize() {
     const parent = canvas.parentElement;
@@ -35,8 +34,8 @@
 
     const oldCols = COLS;
     const oldRows = ROWS;
-    COLS = Math.max(20, Math.floor(width / CELL_SIZE));
-    ROWS = Math.max(15, Math.floor(height / CELL_SIZE));
+    COLS = Math.max(18, Math.floor(width / CELL_SIZE));
+    ROWS = Math.max(14, Math.floor(height / CELL_SIZE));
 
     if (COLS !== oldCols || ROWS !== oldRows) {
       initFields();
@@ -67,7 +66,6 @@
 
   // --- Substrate Fields (Continuous Scalar Fields on Torus T^2) ---
   let S_field, D_field, A_field, plantGrid;
-  // Synaptic weights for von Neumann 4-connected edges: W_right, W_down
   let W_right, W_down;
 
   function idx(x, y) {
@@ -78,15 +76,15 @@
 
   function initFields() {
     const totalCells = COLS * ROWS;
-    S_field = new Float32Array(totalCells); // Soil Bio-Minerals [0, 10]
-    D_field = new Float32Array(totalCells); // Detritus [0, 10]
-    A_field = new Float32Array(totalCells); // Stress Alarm Pheromone [0, 8]
-    plantGrid = new Array(totalCells);     // Autotroph Objects or null
-    W_right = new Float32Array(totalCells); // Axon weights right
-    W_down = new Float32Array(totalCells);  // Axon weights down
+    S_field = new Float32Array(totalCells);
+    D_field = new Float32Array(totalCells);
+    A_field = new Float32Array(totalCells);
+    plantGrid = new Array(totalCells);
+    W_right = new Float32Array(totalCells);
+    W_down = new Float32Array(totalCells);
 
     for (let i = 0; i < totalCells; i++) {
-      S_field[i] = 3.5 + Math.random() * 3.0;
+      S_field[i] = 4.0 + Math.random() * 3.5;
       D_field[i] = 0.5 + Math.random() * 1.5;
       A_field[i] = 0.0;
       plantGrid[i] = null;
@@ -95,24 +93,25 @@
     }
   }
 
-  // --- Autotroph Entity (Canopy Reaction-Diffusion) ---
+  // --- Autotroph Entity (Polyp Morphology with Controlled Growth) ---
   class Autotroph {
     constructor(x, y, energy, generation, genome) {
       this.x = x;
       this.y = y;
-      this.energy = energy || 12.0;
+      this.energy = energy || 10.0;
       this.age = 0;
-      this.maxAge = 350 + Math.floor(Math.random() * 150);
-      this.phi = 0.0; // Neural membrane voltage
-      this.defCalc = 0; // Defensive calcification timer
+      this.maxAge = 400 + Math.floor(Math.random() * 200);
+      this.phi = 0.0;
+      this.defCalc = 0;
       this.generation = generation || 1;
+      this.breathingOffset = Math.random() * Math.PI * 2;
       this.genome = genome || {
-        gamma: 0.85,      // Growth rate
-        mu_p: 0.08,       // Maintenance cost
-        nu: 0.45,         // Mineral uptake efficiency
-        theta_rep: 24.0,  // Budding threshold
-        c_rep: 10.0,      // Reproduction cost
-        kappa: 6          // Crowding tolerance
+        gamma: 0.42,      // Moderate photosynthesis rate
+        mu_p: 0.14,       // Higher baseline metabolic maintenance cost
+        nu: 0.35,         // Mineral uptake rate
+        theta_rep: 34.0,  // Higher threshold required for mitotic budding
+        c_rep: 16.0,      // Higher energy cost to divide
+        kappa: 4          // Strict crowding limit (max 4 neighbors before growth halts)
       };
     }
   }
@@ -122,32 +121,32 @@
   const apexPredators = [];
   const benthicCrabs = [];
   const sparks = [];
-  const decayRings = [];
+  const decayPuffs = [];
 
   class Grazer {
     constructor(x, y, genome) {
       this.x = x;
       this.y = y;
-      this.energy = 45.0;
+      this.energy = 50.0;
       this.age = 0;
       this.genome = genome || {
-        b_eff: 3.2,
-        r_sense: 7,
+        b_eff: 3.8,
+        r_sense: 8,
         isArmored: Math.random() < 0.25,
-        speed: 1.1
+        speed: 1.15
       };
-      this.pulse = 0;
+      this.pulse = Math.random() * Math.PI * 2;
     }
 
     update(climate) {
       this.age++;
-      this.energy -= 0.12;
-      this.pulse += 0.08;
+      this.energy -= 0.11;
+      this.pulse += 0.07;
 
       const gx = Math.floor(this.x / CELL_SIZE);
       const gy = Math.floor(this.y / CELL_SIZE);
 
-      // 1. Alarm Pheromone Avoidance Gradient (Moore N8)
+      // Alarm Avoidance Gradient
       let fleeX = 0;
       let fleeY = 0;
       for (let dx = -1; dx <= 1; dx++) {
@@ -165,11 +164,11 @@
       let targetVy = 0;
       const fleeMag = Math.hypot(fleeX, fleeY);
 
-      if (fleeMag > 0.5) {
-        targetVx = (fleeX / fleeMag) * (this.genome.speed * 1.4);
-        targetVy = (fleeY / fleeMag) * (this.genome.speed * 1.4);
+      if (fleeMag > 0.4) {
+        targetVx = (fleeX / fleeMag) * (this.genome.speed * 1.3);
+        targetVy = (fleeY / fleeMag) * (this.genome.speed * 1.3);
       } else {
-        // 2. Foraging Attraction toward nearest Plant in Chebyshev sense disk
+        // Foraging Attraction
         let nearestDist = Infinity;
         let targetPlant = null;
         const R = this.genome.r_sense;
@@ -177,11 +176,11 @@
         for (let dx = -R; dx <= R; dx++) {
           for (let dy = -R; dy <= R; dy++) {
             const p = plantGrid[idx(gx + dx, gy + dy)];
-            if (p && p.energy > 2.0) {
+            if (p && p.energy > 1.5) {
               const d = Math.max(Math.abs(dx), Math.abs(dy));
               if (d < nearestDist) {
                 nearestDist = d;
-                targetPlant = { x: (gx + dx) * CELL_SIZE + 8, y: (gy + dy) * CELL_SIZE + 8, p, cellIdx: idx(gx + dx, gy + dy) };
+                targetPlant = { x: (gx + dx) * CELL_SIZE + 9, y: (gy + dy) * CELL_SIZE + 9, p };
               }
             }
           }
@@ -196,13 +195,12 @@
             targetVy = (dy / dist) * this.genome.speed;
           }
 
-          // Grazing contact
           if (dist < 10 && targetPlant.p.energy > 0) {
             const defFactor = targetPlant.p.defCalc > 0 ? 0.5 : 1.0;
             const bite = Math.min(targetPlant.p.energy, this.genome.b_eff * defFactor);
             targetPlant.p.energy -= bite;
-            this.energy += bite * 0.85;
-            targetPlant.p.phi = 1.0; // Trigger action potential wave!
+            this.energy += bite * 0.9;
+            targetPlant.p.phi = 1.0;
             propagateWave(targetPlant.p.x, targetPlant.p.y);
           }
         } else {
@@ -214,11 +212,9 @@
       this.x = (this.x + targetVx + width) % width;
       this.y = (this.y + targetVy + height) % height;
 
-      // Mitotic reproduction or death
-      if (this.energy > 75.0 && grazers.length < 80) {
-        this.energy -= 35.0;
-        const childGenome = mutateGenome(this.genome);
-        grazers.push(new Grazer((this.x + 8) % width, (this.y + 8) % height, childGenome));
+      if (this.energy > 85.0 && grazers.length < 65) {
+        this.energy -= 40.0;
+        grazers.push(new Grazer((this.x + 8) % width, (this.y + 8) % height, mutateGenome(this.genome)));
       }
     }
   }
@@ -227,17 +223,16 @@
     constructor(x, y) {
       this.x = x;
       this.y = y;
-      this.energy = 80.0;
-      this.speed = 1.5;
-      this.r_hunt = 12;
+      this.energy = 85.0;
+      this.speed = 1.45;
+      this.r_hunt = 14;
       this.pulse = Math.random() * Math.PI;
     }
 
     update() {
-      this.energy -= 0.16;
+      this.energy -= 0.15;
       this.pulse += 0.05;
 
-      // Locate nearest grazer within hunting disk
       let nearestGrazer = null;
       let minDist = Infinity;
       for (let i = 0; i < grazers.length; i++) {
@@ -257,22 +252,19 @@
         this.x = (this.x + (dx / dist) * this.speed + width) % width;
         this.y = (this.y + (dy / dist) * this.speed + height) % height;
 
-        // Adjacent predation contact
         if (dist < 12) {
           const gx = Math.floor(this.x / CELL_SIZE);
           const gy = Math.floor(this.y / CELL_SIZE);
           const cIdx = idx(gx, gy);
 
           if (nearestGrazer.g.genome.isArmored && Math.random() < 0.65) {
-            // Armor Deflection: deposit alarm and deflect
             A_field[cIdx] = Math.min(8.0, A_field[cIdx] + 2.0);
             this.energy -= 4.0;
-            this.x = (this.x - (dx / dist) * 15 + width) % width;
+            this.x = (this.x - (dx / dist) * 12 + width) % width;
           } else {
-            // Predation succeeds
-            this.energy = Math.min(120.0, this.energy + 28.0);
+            this.energy = Math.min(120.0, this.energy + 32.0);
             A_field[cIdx] = Math.min(8.0, A_field[cIdx] + 4.0);
-            spawnDecayRing(nearestGrazer.g.x, nearestGrazer.g.y, 'grazer');
+            spawnDecayPuff(nearestGrazer.g.x, nearestGrazer.g.y, 'grazer');
             grazers.splice(nearestGrazer.idx, 1);
           }
         }
@@ -281,8 +273,8 @@
         this.y = (this.y + (Math.random() - 0.5) * this.speed + height) % height;
       }
 
-      if (this.energy > 140.0 && apexPredators.length < 8) {
-        this.energy -= 60.0;
+      if (this.energy > 145.0 && apexPredators.length < 8) {
+        this.energy -= 65.0;
         apexPredators.push(new ApexPredator(this.x, this.y));
       }
     }
@@ -292,31 +284,29 @@
     constructor(x, y) {
       this.x = x;
       this.y = y || height * 0.78 + Math.random() * (height * 0.18);
-      this.energy = 50.0;
+      this.energy = 55.0;
       this.speed = 0.55;
-      this.p_recycle = 1.2;
+      this.p_recycle = 1.3;
     }
 
     update() {
-      this.energy -= 0.08;
+      this.energy -= 0.07;
       const gx = Math.floor(this.x / CELL_SIZE);
       const gy = Math.floor(this.y / CELL_SIZE);
       const cIdx = idx(gx, gy);
 
-      // Scavenge detritus into loam
       if (D_field[cIdx] > 0.2) {
         const dScav = Math.min(D_field[cIdx], this.p_recycle);
         D_field[cIdx] -= dScav;
-        S_field[cIdx] = Math.min(10.0, S_field[cIdx] + 1.5 * dScav);
-        this.energy = Math.min(90.0, this.energy + 1.2 * dScav);
+        S_field[cIdx] = Math.min(10.0, S_field[cIdx] + 1.6 * dScav);
+        this.energy = Math.min(95.0, this.energy + 1.2 * dScav);
       }
 
-      // Crawl along benthic seafloor
       this.x = (this.x + (Math.random() - 0.48) * this.speed + width) % width;
       this.y = Math.min(height - 8, Math.max(height * 0.65, this.y + (Math.random() - 0.5) * 0.4));
 
-      if (this.energy > 80.0 && benthicCrabs.length < 30) {
-        this.energy -= 40.0;
+      if (this.energy > 85.0 && benthicCrabs.length < 28) {
+        this.energy -= 45.0;
         benthicCrabs.push(new BenthicCrab(this.x, this.y));
       }
     }
@@ -328,27 +318,33 @@
       b_eff: Math.max(1.0, g.b_eff * mut()),
       r_sense: Math.min(12, Math.max(3, Math.round(g.r_sense * mut()))),
       isArmored: Math.random() < 0.15 ? !g.isArmored : g.isArmored,
-      speed: Math.max(0.6, Math.min(2.2, g.speed * mut()))
+      speed: Math.max(0.6, Math.min(2.0, g.speed * mut()))
     };
   }
 
-  function spawnDecayRing(x, y, type) {
-    decayRings.push({
-      x, y,
-      r: 4,
-      alpha: 1.0,
-      color: type === 'apex' ? '231, 76, 60' : type === 'crab' ? '230, 126, 34' : '46, 204, 113'
-    });
+  function spawnDecayPuff(x, y, type) {
+    const color = type === 'apex' ? '231, 76, 60' : type === 'crab' ? '230, 126, 34' : '46, 204, 113';
+    for (let i = 0; i < 4; i++) {
+      decayPuffs.push({
+        x: x + (Math.random() - 0.5) * 6,
+        y: y + (Math.random() - 0.5) * 6,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: (Math.random() - 0.5) * 0.6 - 0.2,
+        r: 3 + Math.random() * 4,
+        alpha: 0.65,
+        color
+      });
+    }
   }
 
-  // --- Neural Axon Potentials & Hebbian Plasticity ---
+  // --- Neural Axon Potentials & Wave Propagation ---
   function propagateWave(originX, originY) {
     const queue = [{ x: originX, y: originY, phi: 1.0, depth: 0 }];
     const visited = new Set();
 
     while (queue.length > 0) {
       const { x, y, phi, depth } = queue.shift();
-      if (depth > 6 || phi < 0.05) continue;
+      if (depth > 5 || phi < 0.08) continue;
       const key = `${x},${y}`;
       if (visited.has(key)) continue;
       visited.add(key);
@@ -356,7 +352,6 @@
       const pCurr = plantGrid[idx(x, y)];
       if (pCurr) pCurr.phi = Math.max(pCurr.phi, phi);
 
-      // Propagate across 4 von Neumann neighbors
       const neighbors = [
         { nx: (x + 1 + COLS) % COLS, ny: y, edge: 'right', ex: x, ey: y },
         { nx: (x - 1 + COLS) % COLS, ny: y, edge: 'right', ex: (x - 1 + COLS) % COLS, ey: y },
@@ -370,23 +365,21 @@
         if (nextPlant) {
           const edgeIdx = idx(ex, ey);
           let w = edge === 'right' ? W_right[edgeIdx] : W_down[edgeIdx];
-          const nextPhi = phi * 0.72 * Math.min(1.2, w);
+          const nextPhi = phi * 0.68 * Math.min(1.2, w);
 
-          // Hebbian learning: reinforce synaptic weight
           if (edge === 'right') {
-            W_right[edgeIdx] = Math.min(3.0, W_right[edgeIdx] + 0.06 * phi * nextPhi);
+            W_right[edgeIdx] = Math.min(3.0, W_right[edgeIdx] + 0.08 * phi * nextPhi);
           } else {
-            W_down[edgeIdx] = Math.min(3.0, W_down[edgeIdx] + 0.06 * phi * nextPhi);
+            W_down[edgeIdx] = Math.min(3.0, W_down[edgeIdx] + 0.08 * phi * nextPhi);
           }
 
-          // Spawn bioluminescent spark traveling along edge
           sparks.push({
-            x1: x * CELL_SIZE + 8,
-            y1: y * CELL_SIZE + 8,
-            x2: nx * CELL_SIZE + 8,
-            y2: ny * CELL_SIZE + 8,
+            x1: x * CELL_SIZE + 9,
+            y1: y * CELL_SIZE + 9,
+            x2: nx * CELL_SIZE + 9,
+            y2: ny * CELL_SIZE + 9,
             sigma: 0,
-            v: 0.12 + Math.random() * 0.06,
+            v: 0.14 + Math.random() * 0.05,
             phi: nextPhi
           });
 
@@ -402,32 +395,30 @@
     apexPredators.length = 0;
     benthicCrabs.length = 0;
     sparks.length = 0;
-    decayRings.length = 0;
+    decayPuffs.length = 0;
 
-    // Seed autotrophs
     for (let c = 0; c < COLS; c++) {
       for (let r = 0; r < ROWS; r++) {
-        if (Math.random() < 0.22) {
-          plantGrid[idx(c, r)] = new Autotroph(c, r, 10 + Math.random() * 10);
+        if (Math.random() < 0.11) {
+          plantGrid[idx(c, r)] = new Autotroph(c, r, 12 + Math.random() * 8);
         } else {
           plantGrid[idx(c, r)] = null;
         }
       }
     }
 
-    // Seed heterotrophs
-    for (let i = 0; i < 42; i++) {
+    for (let i = 0; i < 35; i++) {
       grazers.push(new Grazer(Math.random() * width, Math.random() * height));
     }
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 16; i++) {
       benthicCrabs.push(new BenthicCrab(Math.random() * width));
     }
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       apexPredators.push(new ApexPredator(Math.random() * width, Math.random() * height));
     }
   }
 
-  // --- Continuous Substrate PDE & Autotroph Reaction Step ---
+  // --- Continuous Substrate PDE & Controlled Autotroph Reaction Step ---
   function stepSimulationFields(climate) {
     const totalCells = COLS * ROWS;
     const nextA = new Float32Array(totalCells);
@@ -452,15 +443,15 @@
         }
         nextA[cIdx] = 0.40 * A_field[cIdx] + (0.15 / 8.0) * sumA;
 
-        // 3. Passive Synaptic Plasticity Relaxation & Voltage Decay
-        W_right[cIdx] = Math.max(1.0, W_right[cIdx] - 0.002);
-        W_down[cIdx] = Math.max(1.0, W_down[cIdx] - 0.002);
+        // 3. Synaptic Plasticity Decay
+        W_right[cIdx] = Math.max(1.0, W_right[cIdx] - 0.003);
+        W_down[cIdx] = Math.max(1.0, W_down[cIdx] - 0.003);
 
-        // 4. Autotroph Update
+        // 4. Autotroph Update with Strict Crowding Limits
         const plant = plantGrid[cIdx];
         if (plant) {
           plant.age++;
-          plant.phi = Math.max(0.0, plant.phi - 0.035);
+          plant.phi = Math.max(0.0, plant.phi - 0.04);
           if (plant.defCalc > 0) plant.defCalc--;
 
           // Canopy crowding kernel K(p) (Moore N8)
@@ -472,19 +463,19 @@
             }
           }
 
-          // Mineral uptake
+          // Soil mineral uptake
           const u = Math.min(S_field[cIdx], plant.genome.nu);
           S_field[cIdx] -= u;
 
-          // Net energy delta
+          // Energy balance
           if (kCount >= plant.genome.kappa) {
-            plant.energy -= 1.4 * plant.genome.mu_p;
+            plant.energy -= 1.6 * plant.genome.mu_p;
           } else {
             plant.energy += (plant.genome.gamma * climate.alpha_sun + u) - plant.genome.mu_p;
           }
 
-          // Mitotic vegetative budding
-          if (plant.energy >= plant.genome.theta_rep && kCount < plant.genome.kappa) {
+          // Mitotic Budding
+          if (plant.energy >= plant.genome.theta_rep && kCount < 3 && Math.random() < 0.25) {
             const emptySpots = [];
             for (let dx = -1; dx <= 1; dx++) {
               for (let dy = -1; dy <= 1; dy++) {
@@ -496,7 +487,7 @@
             if (emptySpots.length > 0) {
               const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
               plant.energy -= plant.genome.c_rep;
-              plantGrid[spot.nIdx] = new Autotroph(spot.x, spot.y, 8.0, plant.generation + 1);
+              plantGrid[spot.nIdx] = new Autotroph(spot.x, spot.y, 10.0, plant.generation + 1);
             }
           }
 
@@ -504,7 +495,7 @@
           if (plant.energy <= 0 || plant.age > plant.maxAge) {
             plantGrid[cIdx] = null;
             D_field[cIdx] = Math.min(8.0, D_field[cIdx] + 1.2);
-            spawnDecayRing(x * CELL_SIZE + 8, y * CELL_SIZE + 8, 'flora');
+            spawnDecayPuff(x * CELL_SIZE + 9, y * CELL_SIZE + 9, 'flora');
           }
         }
       }
@@ -576,14 +567,12 @@
         currentClimateIdx = (currentClimateIdx + 1) % CLIMATES.length;
       }
 
-      // Step physical & chemical fields
       stepSimulationFields(climate);
 
-      // Step heterotrophs
       for (let i = grazers.length - 1; i >= 0; i--) {
         grazers[i].update(climate);
         if (grazers[i].energy <= 0) {
-          spawnDecayRing(grazers[i].x, grazers[i].y, 'grazer');
+          spawnDecayPuff(grazers[i].x, grazers[i].y, 'grazer');
           grazers.splice(i, 1);
         }
       }
@@ -591,7 +580,7 @@
       for (let i = benthicCrabs.length - 1; i >= 0; i--) {
         benthicCrabs[i].update();
         if (benthicCrabs[i].energy <= 0) {
-          spawnDecayRing(benthicCrabs[i].x, benthicCrabs[i].y, 'crab');
+          spawnDecayPuff(benthicCrabs[i].x, benthicCrabs[i].y, 'crab');
           benthicCrabs.splice(i, 1);
         }
       }
@@ -599,21 +588,20 @@
       for (let i = apexPredators.length - 1; i >= 0; i--) {
         apexPredators[i].update();
         if (apexPredators[i].energy <= 0) {
-          spawnDecayRing(apexPredators[i].x, apexPredators[i].y, 'apex');
+          spawnDecayPuff(apexPredators[i].x, apexPredators[i].y, 'apex');
           apexPredators.splice(i, 1);
         }
       }
 
-      // Update telemetry UI at interval
       if (now - lastTick > 350) {
         updateTelemetryUI(climate);
         lastTick = now;
       }
     }
 
-    // --- DRAWING STAGE ---
+    // --- ORGANIC DRAWING STAGE ---
 
-    // 1. Substrate Soil & Detritus Fields
+    // 1. Substrate Heat & Nutrient Map
     if (showSubstrate) {
       for (let x = 0; x < COLS; x++) {
         for (let y = 0; y < ROWS; y++) {
@@ -623,57 +611,64 @@
           const aVal = A_field[cIdx] / 6.0;
 
           if (sVal > 0.05 || dVal > 0.05 || aVal > 0.05) {
-            ctx.fillStyle = `rgba(${Math.floor(aVal * 220 + 20)}, ${Math.floor(sVal * 160 + 30)}, ${Math.floor(dVal * 120 + 20)}, ${0.12 + sVal * 0.18})`;
+            ctx.fillStyle = `rgba(${Math.floor(aVal * 200 + 12)}, ${Math.floor(sVal * 140 + 20)}, ${Math.floor(dVal * 100 + 15)}, ${0.08 + sVal * 0.14})`;
             ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
           }
         }
       }
     }
 
-    // 2. Neural Axon Graph Edges & Plants
-    ctx.lineWidth = 1.0;
+    // 2. Soft Organic Axon Filaments
     for (let x = 0; x < COLS; x++) {
       for (let y = 0; y < ROWS; y++) {
         const p = plantGrid[idx(x, y)];
         if (p) {
-          const px = x * CELL_SIZE + 8;
-          const py = y * CELL_SIZE + 8;
+          const px = x * CELL_SIZE + 9;
+          const py = y * CELL_SIZE + 9;
 
-          // Right Axon Edge
+          // Right Axon Curve
           const pr = plantGrid[idx(x + 1, y)];
           if (pr && x + 1 < COLS) {
             const w = W_right[idx(x, y)];
-            ctx.strokeStyle = `rgba(46, 204, 113, ${Math.min(0.8, 0.15 * w)})`;
+            const firing = p.phi > 0.05 || pr.phi > 0.05;
+            const alpha = firing ? Math.min(0.7, 0.25 * w) : Math.min(0.18, 0.05 * w);
+            ctx.strokeStyle = firing ? `rgba(46, 230, 150, ${alpha})` : `rgba(30, 140, 85, ${alpha})`;
+            ctx.lineWidth = firing ? 1.5 : 0.8;
             ctx.beginPath();
             ctx.moveTo(px, py);
-            ctx.lineTo(px + CELL_SIZE, py);
+            ctx.quadraticCurveTo(px + CELL_SIZE * 0.5, py + (Math.sin(p.breathingOffset) * 2), px + CELL_SIZE, py);
             ctx.stroke();
           }
 
-          // Down Axon Edge
+          // Down Axon Curve
           const pd = plantGrid[idx(x, y + 1)];
           if (pd && y + 1 < ROWS) {
             const w = W_down[idx(x, y)];
-            ctx.strokeStyle = `rgba(46, 204, 113, ${Math.min(0.8, 0.15 * w)})`;
+            const firing = p.phi > 0.05 || pd.phi > 0.05;
+            const alpha = firing ? Math.min(0.7, 0.25 * w) : Math.min(0.18, 0.05 * w);
+            ctx.strokeStyle = firing ? `rgba(46, 230, 150, ${alpha})` : `rgba(30, 140, 85, ${alpha})`;
+            ctx.lineWidth = firing ? 1.5 : 0.8;
             ctx.beginPath();
             ctx.moveTo(px, py);
-            ctx.lineTo(px, py + CELL_SIZE);
+            ctx.quadraticCurveTo(px + (Math.cos(p.breathingOffset) * 2), py + CELL_SIZE * 0.5, px, py + CELL_SIZE);
             ctx.stroke();
           }
 
-          // Autotroph Node
+          // Autotroph Polyp
+          const breath = Math.sin(p.breathingOffset + now * 0.003) * 0.6;
+          const radius = Math.min(5.5, 2.2 + (p.energy / 16.0) + p.phi * 2.2 + breath);
           ctx.beginPath();
-          ctx.fillStyle = p.phi > 0.1 ? '#82e0aa' : '#27ae60';
-          ctx.shadowColor = '#2ecc71';
-          ctx.shadowBlur = p.phi > 0.1 ? 10 : 3;
-          ctx.arc(px, py, Math.min(6, 2.0 + (p.energy / 12.0) + p.phi * 2.5), 0, Math.PI * 2);
+          ctx.fillStyle = p.phi > 0.1 ? '#a3e4d7' : '#2ecc71';
+          ctx.shadowColor = p.phi > 0.1 ? '#48c9b0' : 'rgba(46, 204, 113, 0.4)';
+          ctx.shadowBlur = p.phi > 0.1 ? 8 : 2;
+          ctx.arc(px, py, radius, 0, Math.PI * 2);
           ctx.fill();
         }
       }
     }
     ctx.shadowBlur = 0;
 
-    // 3. Bioluminescent Axon Sparks
+    // 3. Bioluminescent Traveling Sparks
     for (let i = sparks.length - 1; i >= 0; i--) {
       const sp = sparks[i];
       sp.sigma += sp.v;
@@ -684,9 +679,9 @@
         const sy = (1 - sp.sigma) * sp.y1 + sp.sigma * sp.y2;
         ctx.beginPath();
         ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = '#00ffcc';
-        ctx.shadowBlur = 8;
-        ctx.arc(sx, sy, 2.0, 0, Math.PI * 2);
+        ctx.shadowColor = '#58d68d';
+        ctx.shadowBlur = 6;
+        ctx.arc(sx, sy, 1.8, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -697,19 +692,19 @@
       const b = benthicCrabs[i];
       ctx.beginPath();
       ctx.fillStyle = '#e67e22';
-      ctx.arc(b.x, b.y, 3.2, 0, Math.PI * 2);
+      ctx.arc(b.x, b.y, 3.0, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // 5. Grazers
     for (let i = 0; i < grazers.length; i++) {
       const g = grazers[i];
-      const glow = Math.sin(g.pulse) * 1.5;
+      const glow = Math.sin(g.pulse) * 1.2;
       ctx.beginPath();
       ctx.fillStyle = g.genome.isArmored ? '#f39c12' : '#2ecc71';
       ctx.shadowColor = g.genome.isArmored ? '#f39c12' : '#2ecc71';
-      ctx.shadowBlur = 6;
-      ctx.arc(g.x, g.y, Math.max(2.0, 2.8 + glow * 0.4), 0, Math.PI * 2);
+      ctx.shadowBlur = 5;
+      ctx.arc(g.x, g.y, Math.max(1.8, 2.6 + glow * 0.3), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.shadowBlur = 0;
@@ -720,25 +715,26 @@
       ctx.beginPath();
       ctx.fillStyle = '#e74c3c';
       ctx.shadowColor = '#e74c3c';
-      ctx.shadowBlur = 12;
-      ctx.arc(a.x, a.y, 5.5 + Math.sin(a.pulse) * 1.0, 0, Math.PI * 2);
+      ctx.shadowBlur = 10;
+      ctx.arc(a.x, a.y, 5.0 + Math.sin(a.pulse) * 0.8, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.shadowBlur = 0;
 
-    // 7. Decay Expansion Rings
-    for (let i = decayRings.length - 1; i >= 0; i--) {
-      const d = decayRings[i];
-      d.r += 0.4;
-      d.alpha -= 0.02;
-      if (d.alpha <= 0) {
-        decayRings.splice(i, 1);
+    // 7. Soft Atmospheric Decay Puffs
+    for (let i = decayPuffs.length - 1; i >= 0; i--) {
+      const p = decayPuffs[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.r += 0.15;
+      p.alpha -= 0.025;
+      if (p.alpha <= 0) {
+        decayPuffs.splice(i, 1);
       } else {
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(${d.color}, ${d.alpha})`;
-        ctx.lineWidth = 1.4;
-        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
   }
@@ -775,7 +771,6 @@
   const btnHeat = document.getElementById('btnHeatPulse');
   if (btnHeat) {
     btnHeat.addEventListener('click', () => {
-      // Heat pulse shock: inject alarm pheromones and trigger cellular senescence
       for (let i = 0; i < A_field.length; i++) {
         if (Math.random() < 0.25) A_field[i] = Math.min(8.0, A_field[i] + 3.0);
       }
