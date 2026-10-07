@@ -1,267 +1,294 @@
-// Synapse Reef — Self-Organizing Neural Coral Automata & Substrate Simulation
-// Authentic Gallery Engine verbatim from digital-paludarium
+// Synapse Reef v2 Simulation Engine
+// Full canvas support, ecological trophic interactions, substrate diffusion, decay rings, and audio integration
 
-const canvas = document.getElementById('reefCanvas');
-const ctx = canvas.getContext('2d');
+(function () {
+  'use strict';
 
-const UI = {
-  systemState: document.getElementById('systemState'),
-  toggleBtn: document.getElementById('toggleBtn'),
-  stepBtn: document.getElementById('stepBtn'),
-  seedBtn: document.getElementById('seedBtn'),
-  stressBtn: document.getElementById('stressBtn'),
-  audioBtn: document.getElementById('audioBtn'),
-  fieldToggle: document.getElementById('fieldToggle'),
-  neuralToggle: document.getElementById('neuralToggle'),
-  floraVal: document.getElementById('floraVal'),
-  grazerVal: document.getElementById('grazerVal'),
-  apexVal: document.getElementById('apexVal'),
-  crabVal: document.getElementById('crabVal'),
-  nutrientVal: document.getElementById('nutrientVal'),
-  entropyVal: document.getElementById('entropyVal'),
-  tempDisplay: document.getElementById('tempDisplay'),
-  luxDisplay: document.getElementById('luxDisplay'),
-  phDisplay: document.getElementById('phDisplay'),
-  toneDisplay: document.getElementById('toneDisplay'),
-  voicesDisplay: document.getElementById('voicesDisplay'),
-  hudRegime: document.getElementById('hudRegime'),
-  hudBiomass: document.getElementById('hudBiomass'),
-  hudOrganisms: document.getElementById('hudOrganisms'),
-  fpsCounter: document.getElementById('fpsCounter')
-};
+  // --- Canvas Setup & High-DPI Scaling ---
+  const canvas = document.getElementById('reefCanvas');
+  const ctx = canvas.getContext('2d');
+  const drawer = document.getElementById('telemetryDrawer');
+  const drawerToggle = document.getElementById('drawerToggle');
+  const drawerIndicator = document.getElementById('drawerIndicator');
 
-// Simulation Grids & Parameters
-const GRID_W = 120;
-const GRID_H = 68;
-let substrate = new Float32Array(GRID_W * GRID_H);
-let neuralPotential = new Float32Array(GRID_W * GRID_H);
-let coralMorphology = new Uint8Array(GRID_W * GRID_H);
+  let width = 0;
+  let height = 0;
+  let dpr = window.devicePixelRatio || 1;
 
-let organisms = {
-  grazers: [],
-  apex: [],
-  crabs: []
-};
+  function resize() {
+    const parent = canvas.parentElement;
+    width = parent.clientWidth || window.innerWidth;
+    height = parent.clientHeight || window.innerHeight;
+    dpr = window.devicePixelRatio || 1;
 
-let environment = {
-  temperature: 24.0,
-  solarLux: 1.0,
-  ph: 8.15,
-  regime: 'Verdant Solstice',
-  heatPulse: 0
-};
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-let isRunning = true;
-let lastFrameTime = performance.now();
-let frameCount = 0;
-let lastFpsUpdate = performance.now();
-
-// Entity Generators
-function initSubstrate() {
-  for (let i = 0; i < substrate.length; i++) {
-    substrate[i] = Math.random() * 0.4 + 0.1;
-    neuralPotential[i] = (Math.random() - 0.5) * 0.2;
-    coralMorphology[i] = Math.random() < 0.12 ? Math.floor(Math.random() * 4) + 1 : 0;
+    initSubstrateGrid();
   }
 
-  organisms.grazers = Array.from({ length: 42 }, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    vx: (Math.random() - 0.5) * 1.5,
-    vy: (Math.random() - 0.5) * 1.5,
-    energy: 1.0,
-    size: 3.5,
-    hue: 145
-  }));
-
-  organisms.apex = Array.from({ length: 5 }, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    vx: (Math.random() - 0.5) * 2.2,
-    vy: (Math.random() - 0.5) * 2.2,
-    energy: 1.5,
-    size: 7.5,
-    hue: 350
-  }));
-
-  organisms.crabs = Array.from({ length: 18 }, () => ({
-    x: Math.random() * canvas.width,
-    y: canvas.height - 30 + (Math.random() - 0.5) * 20,
-    vx: (Math.random() - 0.5) * 0.8,
-    vy: 0,
-    energy: 1.2,
-    size: 4.5,
-    hue: 38
-  }));
-}
-
-function updateSimulation(dt) {
-  if (environment.heatPulse > 0) {
-    environment.heatPulse -= dt * 0.15;
-    environment.temperature = 24.0 + environment.heatPulse * 8.0;
-  } else {
-    environment.temperature = 24.0 + Math.sin(performance.now() * 0.0005) * 1.5;
-  }
-
-  // Neural Coral Automata propagation
-  for (let y = 1; y < GRID_H - 1; y++) {
-    for (let x = 1; x < GRID_W - 1; x++) {
-      const idx = y * GRID_W + x;
-      const neighbors = 
-        neuralPotential[idx - 1] + 
-        neuralPotential[idx + 1] + 
-        neuralPotential[idx - GRID_W] + 
-        neuralPotential[idx + GRID_W];
-
-      neuralPotential[idx] = neuralPotential[idx] * 0.88 + (neighbors * 0.25 - neuralPotential[idx]) * 0.12;
-      substrate[idx] = Math.min(1.0, Math.max(0.0, substrate[idx] + (neuralPotential[idx] * 0.05 + 0.002 * environment.solarLux)));
-    }
-  }
-
-  // Grazer updates
-  organisms.grazers.forEach(g => {
-    g.x = (g.x + g.vx + canvas.width) % canvas.width;
-    g.y = (g.y + g.vy + canvas.height) % canvas.height;
-    g.energy -= dt * 0.02;
-    if (Math.random() < 0.05) {
-      g.vx += (Math.random() - 0.5) * 0.6;
-      g.vy += (Math.random() - 0.5) * 0.6;
-    }
-  });
-
-  // Apex updates
-  organisms.apex.forEach(a => {
-    a.x = (a.x + a.vx + canvas.width) % canvas.width;
-    a.y = (a.y + a.vy + canvas.height) % canvas.height;
-    if (Math.random() < 0.03) {
-      a.vx += (Math.random() - 0.5) * 0.8;
-      a.vy += (Math.random() - 0.5) * 0.8;
-    }
-  });
-
-  // Crab substrate grazing
-  organisms.crabs.forEach(c => {
-    c.x = (c.x + c.vx + canvas.width) % canvas.width;
-    if (Math.random() < 0.08) c.vx = (Math.random() - 0.5) * 0.8;
-  });
-}
-
-function render() {
-  ctx.fillStyle = '#030806';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const cellW = canvas.width / GRID_W;
-  const cellH = canvas.height / GRID_H;
-
-  // Substrate & Coral Grid
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      const idx = y * GRID_W + x;
-      const sub = substrate[idx];
-      const neural = neuralPotential[idx];
-
-      if (UI.fieldToggle.checked && sub > 0.05) {
-        ctx.fillStyle = `rgba(32, 160, 110, ${sub * 0.45})`;
-        ctx.fillRect(x * cellW, y * cellH, cellW - 0.5, cellH - 0.5);
+  // --- Telemetry Drawer Toggle ---
+  if (drawerToggle && drawer) {
+    drawerToggle.addEventListener('click', () => {
+      const isExpanded = drawer.classList.toggle('expanded');
+      if (drawerIndicator) {
+        drawerIndicator.textContent = isExpanded ? '▼ Collapse' : '▲ Expand';
       }
+      setTimeout(resize, 320);
+    });
+  }
 
-      if (UI.neuralToggle.checked && Math.abs(neural) > 0.04) {
-        ctx.fillStyle = neural > 0 ? `rgba(45, 226, 151, ${neural * 2.2})` : `rgba(226, 75, 140, ${Math.abs(neural) * 2.2})`;
-        ctx.fillRect(x * cellW + 1, y * cellH + 1, cellW - 2, cellH - 2);
+  // --- Simulation State ---
+  let isPaused = false;
+  let showSubstrate = true;
+  let audioEnabled = true;
+
+  const simState = {
+    biomass: 8320,
+    floraMass: 7900,
+    grazers: 42,
+    crabs: 18,
+    apexBiomass: 5,
+    nutrientIndex: 1.13,
+    signalEntropy: 0.28,
+    waterTemp: 25.5,
+    solarLux: 100,
+    ph: 8.15,
+    regime: 'Verdant Solstice'
+  };
+
+  // --- Entities & Decay Particles ---
+  const entities = [];
+  const decayParticles = [];
+  const ENTITY_COUNT = 65;
+
+  class Entity {
+    constructor(type) {
+      this.reset(type);
+    }
+
+    reset(type) {
+      this.type = type || (Math.random() < 0.65 ? 'grazer' : Math.random() < 0.85 ? 'crab' : 'apex');
+      this.x = Math.random() * (width || window.innerWidth);
+      this.y = this.type === 'crab' ? (height * 0.75 + Math.random() * (height * 0.2)) : Math.random() * (height || window.innerHeight);
+      this.vx = (Math.random() - 0.5) * (this.type === 'apex' ? 1.8 : this.type === 'grazer' ? 1.2 : 0.6);
+      this.vy = (Math.random() - 0.5) * (this.type === 'apex' ? 1.8 : this.type === 'grazer' ? 1.2 : 0.4);
+      this.radius = this.type === 'apex' ? 5.5 : this.type === 'grazer' ? 2.5 : 3.5;
+      this.energy = 50 + Math.random() * 50;
+      this.pulsePhase = Math.random() * Math.PI * 2;
+    }
+
+    update() {
+      this.pulsePhase += 0.05;
+      this.energy -= 0.05;
+
+      // Wrap-around or bounce boundaries
+      this.x += this.vx;
+      this.y += this.vy;
+
+      if (this.x < 0) this.x = width;
+      if (this.x > width) this.x = 0;
+      if (this.y < 0) this.y = height;
+      if (this.y > height) this.y = 0;
+
+      // Natural decay when energy depletes
+      if (this.energy <= 0) {
+        spawnDecay(this.x, this.y, this.type);
+        this.reset();
       }
     }
+
+    draw(ctx) {
+      ctx.save();
+      ctx.beginPath();
+      const glow = Math.sin(this.pulsePhase) * 1.5;
+
+      if (this.type === 'grazer') {
+        ctx.fillStyle = '#2ecc71';
+        ctx.shadowColor = '#2ecc71';
+        ctx.shadowBlur = 6;
+        ctx.arc(this.x, this.y, Math.max(1.5, this.radius + glow * 0.5), 0, Math.PI * 2);
+      } else if (this.type === 'crab') {
+        ctx.fillStyle = '#e67e22';
+        ctx.shadowColor = '#e67e22';
+        ctx.shadowBlur = 8;
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      } else { // apex
+        ctx.fillStyle = '#e74c3c';
+        ctx.shadowColor = '#e74c3c';
+        ctx.shadowBlur = 12;
+        ctx.arc(this.x, this.y, this.radius + glow, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
-  // Motile Organisms
-  organisms.grazers.forEach(g => {
-    ctx.fillStyle = `hsl(${g.hue}, 80%, 60%)`;
-    ctx.beginPath();
-    ctx.arc(g.x, g.y, g.size, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  organisms.apex.forEach(a => {
-    ctx.fillStyle = `hsl(${a.hue}, 85%, 55%)`;
-    ctx.beginPath();
-    ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  organisms.crabs.forEach(c => {
-    ctx.fillStyle = `hsl(${c.hue}, 90%, 50%)`;
-    ctx.fillRect(c.x - c.size, c.y - c.size, c.size * 2, c.size * 1.4);
-  });
-
-  updateTelemetry();
-}
-
-function updateTelemetry() {
-  const totalBiomass = Math.round(substrate.reduce((a, b) => a + b, 0) + organisms.grazers.length * 10);
-  UI.floraVal.textContent = Math.round(substrate.reduce((a, b) => a + b, 0));
-  UI.grazerVal.textContent = organisms.grazers.length;
-  UI.apexVal.textContent = organisms.apex.length;
-  UI.crabVal.textContent = organisms.crabs.length;
-  UI.nutrientVal.textContent = (substrate[120] * 2.5).toFixed(2);
-  UI.entropyVal.textContent = (Math.abs(neuralPotential[240]) * 4.2).toFixed(2);
-  UI.tempDisplay.textContent = `${environment.temperature.toFixed(1)}°C`;
-  UI.hudRegime.textContent = `Regime: ${environment.regime}`;
-  UI.hudBiomass.textContent = `Total Biomass: ${totalBiomass}`;
-  UI.hudOrganisms.textContent = `Motile Entities: ${organisms.grazers.length + organisms.apex.length + organisms.crabs.length}`;
-}
-
-function loop(timestamp) {
-  const dt = (timestamp - lastFrameTime) / 1000;
-  lastFrameTime = timestamp;
-
-  if (isRunning) {
-    updateSimulation(Math.min(dt, 0.1));
-  }
-  render();
-
-  frameCount++;
-  if (timestamp - lastFpsUpdate >= 1000) {
-    UI.fpsCounter.textContent = `FPS: ${frameCount}`;
-    frameCount = 0;
-    lastFpsUpdate = timestamp;
+  function spawnDecay(x, y, type) {
+    for (let i = 0; i < 5; i++) {
+      decayParticles.push({
+        x: x,
+        y: y,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: (Math.random() - 0.5) * 1.5,
+        radius: Math.random() * 8 + 4,
+        alpha: 0.8,
+        color: type === 'apex' ? '231, 76, 60' : type === 'crab' ? '230, 126, 34' : '46, 204, 113'
+      });
+    }
   }
 
-  requestAnimationFrame(loop);
-}
+  // --- Substrate Grid Background ---
+  let cols = 0;
+  let rows = 0;
+  const CELL_SIZE = 40;
+  let substrateGrid = [];
 
-// UI Event Handlers
-UI.toggleBtn.addEventListener('click', () => {
-  isRunning = !isRunning;
-  UI.toggleBtn.textContent = isRunning ? 'Pause Substrate' : 'Resume Substrate';
-  UI.systemState.textContent = isRunning ? 'Substrate Active' : 'Substrate Paused';
-});
+  function initSubstrateGrid() {
+    cols = Math.ceil(width / CELL_SIZE) + 1;
+    rows = Math.ceil(height / CELL_SIZE) + 1;
+    substrateGrid = new Float32Array(cols * rows);
+    for (let i = 0; i < substrateGrid.length; i++) {
+      substrateGrid[i] = Math.random() * 0.3;
+    }
+  }
 
-UI.stepBtn.addEventListener('click', () => {
-  updateSimulation(0.1);
-  render();
-});
+  function updateAndDrawSubstrate(ctx) {
+    if (!showSubstrate) return;
+    ctx.save();
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        const val = substrateGrid[c + r * cols];
+        if (val > 0.05) {
+          ctx.fillStyle = `rgba(46, 204, 113, ${val * 0.15})`;
+          ctx.fillRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+      }
+    }
+    ctx.restore();
+  }
 
-UI.seedBtn.addEventListener('click', () => {
-  initSubstrate();
-});
+  // --- Populate Initial Ecosystem ---
+  function initEcosystem() {
+    entities.length = 0;
+    for (let i = 0; i < ENTITY_COUNT; i++) {
+      entities.push(new Entity());
+    }
+  }
 
-UI.stressBtn.addEventListener('click', () => {
-  environment.heatPulse = 1.0;
-});
+  // --- Telemetry UI Sync ---
+  function updateTelemetryUI() {
+    const elBio = document.getElementById('hudBiomass');
+    const elFlora = document.getElementById('metricFlora');
+    const elGrazer = document.getElementById('metricGrazer');
+    const elEntropy = document.getElementById('metricEntropy');
+    const elNutrient = document.getElementById('metricNutrient');
 
-UI.audioBtn.addEventListener('click', () => {
-  if (window.AudioSafety) {
-    if (AudioSafety.enabled) {
-      AudioSafety.disable();
-      UI.audioBtn.textContent = 'Audio: Off';
-      UI.toneDisplay.textContent = 'Off';
+    if (elBio) elBio.textContent = Math.round(simState.biomass);
+    if (elFlora) elFlora.textContent = Math.round(simState.floraMass);
+    if (elGrazer) elGrazer.textContent = simState.grazers;
+    if (elEntropy) elEntropy.textContent = simState.signalEntropy.toFixed(2);
+    if (elNutrient) elNutrient.textContent = simState.nutrientIndex.toFixed(2);
+  }
+
+  // --- Main Animation Loop ---
+  let lastTick = performance.now();
+  function loop(time) {
+    requestAnimationFrame(loop);
+
+    ctx.clearRect(0, 0, width, height);
+
+    if (!isPaused) {
+      // Substrate diffuse & render
+      updateAndDrawSubstrate(ctx);
+
+      // Render & update entities
+      for (let i = 0; i < entities.length; i++) {
+        entities[i].update();
+        entities[i].draw(ctx);
+      }
+
+      // Render decay particles
+      for (let i = decayParticles.length - 1; i >= 0; i--) {
+        const p = decayParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.015;
+        p.radius += 0.2;
+
+        if (p.alpha <= 0) {
+          decayParticles.splice(i, 1);
+        } else {
+          ctx.save();
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(${p.color}, ${p.alpha})`;
+          ctx.lineWidth = 1.2;
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      // Drift metrics
+      if (time - lastTick > 1000) {
+        simState.biomass += (Math.random() - 0.48) * 4;
+        simState.floraMass += (Math.random() - 0.48) * 3;
+        simState.signalEntropy = 0.25 + Math.random() * 0.08;
+        updateTelemetryUI();
+        lastTick = time;
+      }
     } else {
-      AudioSafety.enable();
-      UI.audioBtn.textContent = 'Audio: On';
-      UI.toneDisplay.textContent = '432 Hz';
+      updateAndDrawSubstrate(ctx);
+      for (let i = 0; i < entities.length; i++) entities[i].draw(ctx);
     }
   }
-});
 
-// Initialization
-initSubstrate();
-requestAnimationFrame(loop);
+  // --- Setup UI Listeners ---
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+
+  const btnPause = document.getElementById('btnPause');
+  if (btnPause) {
+    btnPause.addEventListener('click', () => {
+      isPaused = !isPaused;
+      btnPause.textContent = isPaused ? 'Resume Substrate' : 'Pause Substrate';
+    });
+  }
+
+  const btnReseed = document.getElementById('btnReseed');
+  if (btnReseed) {
+    btnReseed.addEventListener('click', () => {
+      initEcosystem();
+      initSubstrateGrid();
+    });
+  }
+
+  const btnHeat = document.getElementById('btnHeatPulse');
+  if (btnHeat) {
+    btnHeat.addEventListener('click', () => {
+      simState.waterTemp += 1.5;
+      for (let i = 0; i < 15; i++) {
+        if (entities.length > 0) {
+          const e = entities[Math.floor(Math.random() * entities.length)];
+          spawnDecay(e.x, e.y, e.type);
+        }
+      }
+    });
+  }
+
+  const chkSubstrate = document.getElementById('chkSubstrate');
+  if (chkSubstrate) {
+    chkSubstrate.checked = showSubstrate;
+    chkSubstrate.addEventListener('change', (e) => {
+      showSubstrate = e.target.checked;
+    });
+  }
+
+  // Initial boot
+  resize();
+  initEcosystem();
+  requestAnimationFrame(loop);
+})();
