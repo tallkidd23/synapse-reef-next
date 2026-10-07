@@ -1,6 +1,5 @@
-// Synapse Reef v2.2 - Organic Emergence Engine
-// Non-grid continuous plant positioning, proximity-based organic mycelial axons,
-// smooth fluid-diffusion substrate background, and inertial steering dynamics.
+// Synapse Reef v2.3 - Directional Branching Neural Reef Engine
+// Tree-like dendritic axon tendrils, rich ambient seabed substrate, organic polyp pulsation, and trophic dynamics
 
 (function () {
   'use strict';
@@ -20,10 +19,10 @@
   let height = 0;
   let dpr = window.devicePixelRatio || 1;
 
-  // Discrete Torus substrate resolution (downscaled for fluid blur interpolation)
-  const SUB_SCALE = 8;
-  let SUB_COLS = 40;
-  let SUB_ROWS = 30;
+  // Discrete Torus substrate resolution
+  const SUB_SCALE = 10;
+  let SUB_COLS = 36;
+  let SUB_ROWS = 28;
 
   function resize() {
     const parent = canvas.parentElement;
@@ -83,42 +82,55 @@
     D_field = new Float32Array(total);
     A_field = new Float32Array(total);
 
-    for (let i = 0; i < total; i++) {
-      S_field[i] = 3.5 + Math.random() * 3.5;
-      D_field[i] = 0.5 + Math.random() * 1.5;
-      A_field[i] = 0.0;
+    for (let y = 0; y < SUB_ROWS; y++) {
+      // Natural gradient: richer substrate towards seabed
+      const depthBias = 1.0 + (y / SUB_ROWS) * 2.0;
+      for (let x = 0; x < SUB_COLS; x++) {
+        const i = x + y * SUB_COLS;
+        S_field[i] = (2.5 + Math.random() * 2.5) * depthBias;
+        D_field[i] = (0.4 + Math.random() * 1.2) * depthBias;
+        A_field[i] = 0.0;
+      }
     }
   }
 
-  // --- Non-Grid Autotrophs (Organic Polyp Morphology) ---
+  // --- Dendritic Autotrophs (Directional Branching Tree Tendrils) ---
   const plants = [];
   const sparks = [];
   const decayPuffs = [];
-  const MAX_PLANTS = 110;
-  const AXON_CONNECT_RADIUS = 34; // Max distance for proximity axon binding
+  const MAX_PLANTS = 140;
 
-  class OrganicAutotroph {
-    constructor(x, y, energy, generation, genome) {
+  class DendriticAutotroph {
+    constructor(x, y, parent, generation, genome) {
       this.x = x;
       this.y = y;
-      this.energy = energy || 14.0;
+      this.parent = parent || null;
+      this.children = [];
+      this.synapseWeights = new Map(); // Map<childPlant, weight>
+      this.parentWeight = 1.2;
+
+      this.energy = 16.0;
       this.age = 0;
-      this.maxAge = 450 + Math.floor(Math.random() * 250);
-      this.phi = 0.0; // Neural membrane voltage
+      this.maxAge = 500 + Math.floor(Math.random() * 300);
+      this.phi = 0.0;
       this.defCalc = 0;
       this.generation = generation || 1;
-      this.breathingPhase = Math.random() * Math.PI * 2;
-      this.breathingSpeed = 0.03 + Math.random() * 0.02;
-      this.synapses = new Map(); // Map<targetPlant, weight>
+      this.swayPhase = Math.random() * Math.PI * 2;
+      this.swaySpeed = 0.02 + Math.random() * 0.02;
 
       this.genome = genome || {
-        gamma: 0.45,      // Photosynthetic efficiency
-        mu_p: 0.12,       // Maintenance cost
-        nu: 0.40,         // Mineral uptake
-        theta_rep: 32.0,  // Budding threshold
-        c_rep: 15.0,      // Budding cost
-        maxNeighbors: 5   // Crowding limit
+        gamma: 0.48,      // Photosynthetic efficiency
+        mu_p: 0.11,       // Maintenance cost
+        nu: 0.42,         // Mineral uptake
+        theta_rep: 30.0,  // Budding threshold
+        c_rep: 14.0,      // Budding cost
+        maxBranches: 2    // Max 2 child branches (strict dendritic tree)
       };
+
+      if (this.parent) {
+        this.parent.children.push(this);
+        this.parent.synapseWeights.set(this, 1.2);
+      }
     }
 
     update(climate) {
@@ -126,16 +138,18 @@
       this.phi = Math.max(0.0, this.phi - 0.035);
       if (this.defCalc > 0) this.defCalc--;
 
-      // Relax and prune dead synapses
-      for (const [target, w] of this.synapses.entries()) {
-        if (!plants.includes(target) || Math.hypot(target.x - this.x, target.y - this.y) > AXON_CONNECT_RADIUS * 1.2) {
-          this.synapses.delete(target);
+      // Relax Hebbian synapse weights
+      for (const [child, w] of this.synapseWeights.entries()) {
+        if (!plants.includes(child)) {
+          this.synapseWeights.delete(child);
+          const cIdx = this.children.indexOf(child);
+          if (cIdx !== -1) this.children.splice(cIdx, 1);
         } else {
-          this.synapses.set(target, Math.max(1.0, w - 0.002));
+          this.synapseWeights.set(child, Math.max(1.0, w - 0.002));
         }
       }
 
-      // Sample substrate loam at continuous location
+      // Loam absorption
       const gx = Math.floor(this.x / SUB_SCALE);
       const gy = Math.floor(this.y / SUB_SCALE);
       const sIndex = subIdx(gx, gy);
@@ -143,40 +157,40 @@
       const u = Math.min(S_field[sIndex], this.genome.nu);
       S_field[sIndex] -= u;
 
-      // Count local crowding within radius
-      let neighborCount = 0;
+      // Local crowding
+      let localCrowd = 0;
       for (let i = 0; i < plants.length; i++) {
         const other = plants[i];
         if (other === this) continue;
-        const d = Math.hypot(other.x - this.x, other.y - this.y);
-        if (d < 24) neighborCount++;
+        if (Math.hypot(other.x - this.x, other.y - this.y) < 22) localCrowd++;
       }
 
-      // Net energy delta
-      if (neighborCount >= this.genome.maxNeighbors) {
-        this.energy -= 1.6 * this.genome.mu_p;
+      if (localCrowd > 4) {
+        this.energy -= 1.4 * this.genome.mu_p;
       } else {
         this.energy += (this.genome.gamma * climate.alpha_sun + u) - this.genome.mu_p;
       }
 
-      // Clonal budding into organic radial branch
-      if (this.energy >= this.genome.theta_rep && neighborCount < 4 && plants.length < MAX_PLANTS && Math.random() < 0.2) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 16 + Math.random() * 14;
-        const childX = (this.x + Math.cos(angle) * dist + width) % width;
-        const childY = (this.y + Math.sin(angle) * dist + height) % height;
+      // Directional dendritic branching (outward & upward growth)
+      if (this.energy >= this.genome.theta_rep && this.children.length < this.genome.maxBranches && plants.length < MAX_PLANTS && Math.random() < 0.22) {
+        let baseAngle = -Math.PI / 2;
+        if (this.parent) {
+          baseAngle = Math.atan2(this.y - this.parent.y, this.x - this.parent.x);
+        }
+        const branchAngle = baseAngle + (Math.random() - 0.5) * 1.4;
+        const branchDist = 18 + Math.random() * 12;
+
+        const childX = (this.x + Math.cos(branchAngle) * branchDist + width) % width;
+        const childY = (this.y + Math.sin(branchAngle) * branchDist + height) % height;
 
         this.energy -= this.genome.c_rep;
-        const child = new OrganicAutotroph(childX, childY, 10.0, this.generation + 1);
+        const child = new DendriticAutotroph(childX, childY, this, this.generation + 1);
         plants.push(child);
-
-        // Bind immediate parent-child synapse
-        this.synapses.set(child, 1.4);
       }
     }
   }
 
-  // --- Heterotrophs with Smooth Inertial Steering ---
+  // --- Heterotrophs with Organic Inertial Steering ---
   const grazers = [];
   const apexPredators = [];
   const benthicCrabs = [];
@@ -191,9 +205,9 @@
       this.age = 0;
       this.genome = genome || {
         b_eff: 3.6,
-        r_sense: 75,
+        r_sense: 80,
         isArmored: Math.random() < 0.25,
-        maxSpeed: 1.4
+        maxSpeed: 1.35
       };
       this.pulse = Math.random() * Math.PI * 2;
     }
@@ -206,7 +220,7 @@
       const gx = Math.floor(this.x / SUB_SCALE);
       const gy = Math.floor(this.y / SUB_SCALE);
 
-      // 1. Alarm Pheromone Avoidance Steering
+      // Alarm avoidance
       let fleeX = 0;
       let fleeY = 0;
       for (let dx = -2; dx <= 2; dx++) {
@@ -224,10 +238,10 @@
       const fleeMag = Math.hypot(fleeX, fleeY);
 
       if (fleeMag > 0.3) {
-        desiredVx = (fleeX / fleeMag) * (this.genome.maxSpeed * 1.4);
-        desiredVy = (fleeY / fleeMag) * (this.genome.maxSpeed * 1.4);
+        desiredVx = (fleeX / fleeMag) * (this.genome.maxSpeed * 1.35);
+        desiredVy = (fleeY / fleeMag) * (this.genome.maxSpeed * 1.35);
       } else {
-        // 2. Foraging Steering toward closest autotroph within sense radius
+        // Nearest autotroph foraging
         let closestDist = Infinity;
         let targetPlant = null;
 
@@ -247,7 +261,6 @@
           desiredVx = (dx / closestDist) * this.genome.maxSpeed;
           desiredVy = (dy / closestDist) * this.genome.maxSpeed;
 
-          // Grazing contact
           if (closestDist < 10 && targetPlant.energy > 0) {
             const defFactor = targetPlant.defCalc > 0 ? 0.5 : 1.0;
             const bite = Math.min(targetPlant.energy, this.genome.b_eff * defFactor);
@@ -262,14 +275,13 @@
         }
       }
 
-      // Smooth inertia steering (prevents robotic twitching)
       this.vx += (desiredVx - this.vx) * 0.08;
       this.vy += (desiredVy - this.vy) * 0.08;
 
       const spd = Math.hypot(this.vx, this.vy);
-      if (spd > this.genome.maxSpeed * 1.4) {
-        this.vx = (this.vx / spd) * (this.genome.maxSpeed * 1.4);
-        this.vy = (this.vy / spd) * (this.genome.maxSpeed * 1.4);
+      if (spd > this.genome.maxSpeed * 1.35) {
+        this.vx = (this.vx / spd) * (this.genome.maxSpeed * 1.35);
+        this.vy = (this.vy / spd) * (this.genome.maxSpeed * 1.35);
       }
 
       this.x = (this.x + this.vx + width) % width;
@@ -355,7 +367,7 @@
   class OrganicBenthicCrab {
     constructor(x, y) {
       this.x = x;
-      this.y = y || height * 0.78 + Math.random() * (height * 0.18);
+      this.y = y || height * 0.82 + Math.random() * (height * 0.15);
       this.vx = (Math.random() - 0.5) * 0.6;
       this.energy = 55.0;
       this.p_recycle = 1.4;
@@ -377,7 +389,7 @@
       this.vx += (Math.random() - 0.5) * 0.15;
       this.vx = Math.max(-0.65, Math.min(0.65, this.vx));
       this.x = (this.x + this.vx + width) % width;
-      this.y = Math.min(height - 8, Math.max(height * 0.65, this.y + (Math.random() - 0.5) * 0.3));
+      this.y = Math.min(height - 8, Math.max(height * 0.70, this.y + (Math.random() - 0.5) * 0.3));
 
       if (this.energy > 85.0 && benthicCrabs.length < 28) {
         this.energy -= 45.0;
@@ -411,44 +423,50 @@
     }
   }
 
-  // --- Organic Action Potential Propagation ---
+  // --- Dendritic Action Potential Propagation ---
   function propagateWave(startPlant) {
     const queue = [{ plant: startPlant, phi: 1.0, depth: 0 }];
     const visited = new Set();
 
     while (queue.length > 0) {
       const { plant, phi, depth } = queue.shift();
-      if (depth > 6 || phi < 0.08) continue;
+      if (depth > 8 || phi < 0.08) continue;
       if (visited.has(plant)) continue;
       visited.add(plant);
 
       plant.phi = Math.max(plant.phi, phi);
 
-      // Connect or reinforce proximity synapses on the fly
-      for (let i = 0; i < plants.length; i++) {
-        const other = plants[i];
-        if (other === plant) continue;
-        const dist = Math.hypot(other.x - plant.x, other.y - plant.y);
+      // 1. Downstream tendril propagation
+      for (let i = 0; i < plant.children.length; i++) {
+        const child = plant.children[i];
+        let w = plant.synapseWeights.get(child) || 1.0;
+        const nextPhi = phi * 0.74 * Math.min(1.2, w);
+        plant.synapseWeights.set(child, Math.min(3.0, w + 0.08 * phi * nextPhi));
 
-        if (dist <= AXON_CONNECT_RADIUS) {
-          let w = plant.synapses.get(other) || 1.0;
-          const nextPhi = phi * 0.70 * Math.min(1.2, w);
+        sparks.push({
+          x1: plant.x,
+          y1: plant.y,
+          x2: child.x,
+          y2: child.y,
+          sigma: 0,
+          v: 0.12 + Math.random() * 0.04
+        });
 
-          // Hebbian weight reinforcement
-          plant.synapses.set(other, Math.min(3.0, w + 0.10 * phi * nextPhi));
+        queue.push({ plant: child, phi: nextPhi, depth: depth + 1 });
+      }
 
-          // Spawn traveling bioluminescent spark
-          sparks.push({
-            x1: plant.x,
-            y1: plant.y,
-            x2: other.x,
-            y2: other.y,
-            sigma: 0,
-            v: 0.12 + Math.random() * 0.05
-          });
-
-          queue.push({ plant: other, phi: nextPhi, depth: depth + 1 });
-        }
+      // 2. Upstream parent propagation
+      if (plant.parent && !visited.has(plant.parent)) {
+        const nextPhi = phi * 0.68;
+        sparks.push({
+          x1: plant.x,
+          y1: plant.y,
+          x2: plant.parent.x,
+          y2: plant.parent.y,
+          sigma: 0,
+          v: 0.12 + Math.random() * 0.04
+        });
+        queue.push({ plant: plant.parent, phi: nextPhi, depth: depth + 1 });
       }
     }
   }
@@ -462,20 +480,20 @@
     sparks.length = 0;
     decayPuffs.length = 0;
 
-    // Seed 4-6 natural coral reef clusters
-    const clusterCount = 5;
-    for (let k = 0; k < clusterCount; k++) {
-      const cx = 40 + Math.random() * (width - 80);
-      const cy = 40 + Math.random() * (height - 80);
-      const count = 6 + Math.floor(Math.random() * 6);
-      for (let j = 0; j < count; j++) {
-        const rAngle = Math.random() * Math.PI * 2;
-        const rDist = Math.random() * 32;
-        plants.push(new OrganicAutotroph(
-          (cx + Math.cos(rAngle) * rDist + width) % width,
-          (cy + Math.sin(rAngle) * rDist + height) % height,
-          12 + Math.random() * 8
-        ));
+    // Seed 6 root coral heads with initial tendril branches
+    const rootCount = 6;
+    for (let k = 0; k < rootCount; k++) {
+      const rootX = 30 + (k / (rootCount - 1)) * (width - 60) + (Math.random() - 0.5) * 30;
+      const rootY = height * 0.60 + Math.random() * (height * 0.28);
+      const root = new DendriticAutotroph(rootX, rootY, null, 1);
+      plants.push(root);
+
+      for (let b = 0; b < 2; b++) {
+        const bAngle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+        const bDist = 18 + Math.random() * 10;
+        const bX = (rootX + Math.cos(bAngle) * bDist + width) % width;
+        const bY = (rootY + Math.sin(bAngle) * bDist + height) % height;
+        plants.push(new DendriticAutotroph(bX, bY, root, 2));
       }
     }
 
@@ -584,6 +602,11 @@
           const sIndex = subIdx(gx, gy);
           D_field[sIndex] = Math.min(8.0, D_field[sIndex] + 1.2);
           spawnDecayPuff(p.x, p.y, 'flora');
+
+          if (p.parent) {
+            const idx = p.parent.children.indexOf(p);
+            if (idx !== -1) p.parent.children.splice(idx, 1);
+          }
           plants.splice(i, 1);
         }
       }
@@ -621,7 +644,7 @@
 
     // --- DRAWING STAGE ---
 
-    // 1. Smooth Fluid PDE Substrate Map (Rendered via bilinear upscaled buffer)
+    // 1. Ambient Seabed Substrate Map
     if (showSubstrate) {
       const imgData = subCtx.createImageData(SUB_COLS, SUB_ROWS);
       const data = imgData.data;
@@ -634,10 +657,10 @@
           const dVal = D_field[i] / 8.0;
           const aVal = A_field[i] / 6.0;
 
-          data[pIdx] = Math.min(255, Math.floor(aVal * 220 + 6));       // R (Alarm)
-          data[pIdx + 1] = Math.min(255, Math.floor(sVal * 150 + 20));  // G (Minerals)
-          data[pIdx + 2] = Math.min(255, Math.floor(dVal * 110 + 12));  // B (Detritus)
-          data[pIdx + 3] = Math.min(255, Math.floor((sVal * 0.18 + dVal * 0.12 + aVal * 0.3) * 255)); // Alpha
+          data[pIdx] = Math.min(255, Math.floor(aVal * 220 + 8));
+          data[pIdx + 1] = Math.min(255, Math.floor(sVal * 160 + 25));
+          data[pIdx + 2] = Math.min(255, Math.floor(dVal * 120 + 18));
+          data[pIdx + 3] = Math.min(255, Math.floor((0.15 + sVal * 0.22 + dVal * 0.15 + aVal * 0.35) * 255));
         }
       }
 
@@ -646,40 +669,44 @@
       ctx.save();
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      ctx.globalAlpha = 0.9;
+      ctx.globalAlpha = 0.95;
       ctx.drawImage(subCanvas, 0, 0, width, height);
       ctx.restore();
     }
 
-    // 2. Organic Mycelial Axons (Smooth proximity connections)
+    // 2. Directional Branching Dendritic Tendrils
     for (let i = 0; i < plants.length; i++) {
-      const p1 = plants[i];
-      for (const [p2, w] of p1.synapses.entries()) {
-        const firing = p1.phi > 0.05 || p2.phi > 0.05;
-        const alpha = firing ? Math.min(0.75, 0.28 * w) : Math.min(0.18, 0.05 * w);
-        ctx.strokeStyle = firing ? `rgba(46, 230, 150, ${alpha})` : `rgba(30, 140, 85, ${alpha})`;
-        ctx.lineWidth = firing ? 1.6 : 0.8;
+      const p = plants[i];
+      if (p.parent && plants.includes(p.parent)) {
+        const firing = p.phi > 0.05 || p.parent.phi > 0.05;
+        const w = p.parent.synapseWeights.get(p) || 1.0;
+        const alpha = firing ? Math.min(0.85, 0.35 * w) : Math.min(0.25, 0.08 * w);
+
+        ctx.strokeStyle = firing ? `rgba(46, 230, 160, ${alpha})` : `rgba(34, 153, 94, ${alpha})`;
+        ctx.lineWidth = firing ? 1.8 : 1.0;
+
+        const sway = Math.sin(p.swayPhase + now * 0.002) * 3.5;
+        const midX = (p.parent.x + p.x) * 0.5 + sway;
+        const midY = (p.parent.y + p.y) * 0.5;
 
         ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        const midX = (p1.x + p2.x) * 0.5 + Math.sin(p1.breathingPhase) * 2;
-        const midY = (p1.y + p2.y) * 0.5 + Math.cos(p1.breathingPhase) * 2;
-        ctx.quadraticCurveTo(midX, midY, p2.x, p2.y);
+        ctx.moveTo(p.parent.x, p.parent.y);
+        ctx.quadraticCurveTo(midX, midY, p.x, p.y);
         ctx.stroke();
       }
     }
 
-    // 3. Autotroph Polyps (Continuous non-grid nodes)
+    // 3. Autotroph Polyps
     for (let i = 0; i < plants.length; i++) {
       const p = plants[i];
-      p.breathingPhase += p.breathingSpeed;
-      const breath = Math.sin(p.breathingPhase) * 0.6;
-      const r = Math.min(6.0, 2.2 + (p.energy / 16.0) + p.phi * 2.2 + breath);
+      p.swayPhase += p.swaySpeed;
+      const breath = Math.sin(p.swayPhase) * 0.7;
+      const r = Math.min(6.5, 2.5 + (p.energy / 14.0) + p.phi * 2.5 + breath);
 
       ctx.beginPath();
       ctx.fillStyle = p.phi > 0.1 ? '#a3e4d7' : '#2ecc71';
       ctx.shadowColor = p.phi > 0.1 ? '#48c9b0' : 'rgba(46, 204, 113, 0.4)';
-      ctx.shadowBlur = p.phi > 0.1 ? 8 : 2;
+      ctx.shadowBlur = p.phi > 0.1 ? 10 : 3;
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fill();
     }
@@ -697,8 +724,8 @@
         ctx.beginPath();
         ctx.fillStyle = '#ffffff';
         ctx.shadowColor = '#58d68d';
-        ctx.shadowBlur = 6;
-        ctx.arc(sx, sy, 1.8, 0, Math.PI * 2);
+        ctx.shadowBlur = 7;
+        ctx.arc(sx, sy, 2.0, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -709,7 +736,7 @@
       const b = benthicCrabs[i];
       ctx.beginPath();
       ctx.fillStyle = '#e67e22';
-      ctx.arc(b.x, b.y, 3.0, 0, Math.PI * 2);
+      ctx.arc(b.x, b.y, 3.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -805,7 +832,7 @@
     });
   }
 
-  // Initial boot
+  // Boot
   resize();
   initFields();
   initEcosystem();
