@@ -4,22 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#07130d" />
-  <title>Digital Paludarium</title>
+  <title>Synapse Reef v2</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app-shell">
     <section class="hero">
       <p class="eyebrow">A living system in miniature</p>
-      <h1>Digital Paludarium</h1>
+      <h1>Synapse Reef v2</h1>
       <p class="lede">A small artificial world where plants, herbivores, evolution, and memory shape one another.</p>
     </section>
 
     <section class="controls" aria-label="Simulation controls">
       <button id="toggleBtn">Pause</button>
+      <button id="stepBtn">Step</button>
       <button id="resetBtn">Reset</button>
       <button id="soundBtn">Sound: off</button>
       <label>Speed <input id="speedRange" type="range" min="0.25" max="3" value="1" step="0.25" /></label>
+      <button id="diagnosticsBtn" aria-expanded="false">Diagnostics</button>
     </section>
 
     <section class="stats" aria-live="polite">
@@ -27,6 +29,19 @@
       <div><span>Plants</span><strong id="plantStat">0</strong></div>
       <div><span>Herbivores</span><strong id="herbivoreStat">0</strong></div>
       <div><span>Temperature</span><strong id="tempStat">24°C</strong></div>
+    </section>
+
+    <section id="diagnostics" class="diagnostics" hidden aria-live="polite">
+      <div><span>Seed</span><strong id="seedDiag">—</strong></div>
+      <div><span>Tick</span><strong id="tickDiag">0</strong></div>
+      <div><span>Elapsed</span><strong id="elapsedDiag">0.0s</strong></div>
+      <div><span>Frame</span><strong id="frameDiag">0.0ms</strong></div>
+      <div><span>Events</span><strong id="eventsDiag">0</strong></div>
+      <div><span>Drops</span><strong id="dropsDiag">0</strong></div>
+      <div><span>Births</span><strong id="birthsDiag">0</strong></div>
+      <div><span>Deaths</span><strong id="deathsDiag">0</strong></div>
+      <div><span>Feeding</span><strong id="feedingsDiag">0</strong></div>
+      <div><span>Fingerprint</span><strong id="fingerprintDiag">—</strong></div>
     </section>
 
     <section class="world-card">
@@ -43,6 +58,7 @@
   </main>
 
   <script src="audio-safety.js"></script>
+  <script src="phase-1-foundation.js"></script>
   <script src="main.js"></script>
 </body>
 </html>
