@@ -1,5 +1,6 @@
-// Synapse Reef v2.4 - Polished Dendritic Neural Reef Engine
-// Boundary-Aware Branching, Multi-Colony Seabed Stalks, Wave Action Pulses, and Fluid Substrate
+// Synapse Reef v2.5 - Living Ocean Dynamics Engine
+// Part 1: Kuramoto Coupled Oscillator Phase-Locking, Reynolds Flocking Shoals,
+// Divergence-Free Incompressible Curl-Noise Marine Snow, and Inertial Trophic Dynamics
 
 (function () {
   'use strict';
@@ -11,7 +12,7 @@
   const drawerToggle = document.getElementById('drawerToggle');
   const drawerIndicator = document.getElementById('drawerIndicator');
 
-  // Offscreen buffer for smooth fluid PDE substrate rendering
+  // Substrate buffer for fluid background PDE
   const subCanvas = document.createElement('canvas');
   const subCtx = subCanvas.getContext('2d');
 
@@ -19,7 +20,6 @@
   let height = 0;
   let dpr = window.devicePixelRatio || 1;
 
-  // Discrete Torus substrate resolution
   const SUB_SCALE = 10;
   let SUB_COLS = 36;
   let SUB_ROWS = 28;
@@ -67,7 +67,46 @@
   let currentClimateIdx = 0;
   let climateTick = 0;
 
-  // --- Continuous Substrate Fields on Torus T^2 ---
+  // --- Curl Noise Field for Fluid Marine Drift (Divergence-Free Flow) ---
+  function getCurlVelocity(x, y, t) {
+    const scale = 0.004;
+    const eps = 1.0;
+    const tScale = t * 0.0003;
+
+    // Numerical partial derivatives of potential field psi(x,y)
+    const psi_x1 = Math.sin((x + eps) * scale + tScale) * Math.cos(y * scale);
+    const psi_x0 = Math.sin((x - eps) * scale + tScale) * Math.cos(y * scale);
+    const psi_y1 = Math.sin(x * scale + tScale) * Math.cos((y + eps) * scale);
+    const psi_y0 = Math.sin(x * scale + tScale) * Math.cos((y - eps) * scale);
+
+    const dPsi_dy = (psi_y1 - psi_y0) / (2 * eps);
+    const dPsi_dx = (psi_x1 - psi_x0) / (2 * eps);
+
+    // u = dPsi/dy, v = -dPsi/dx (guaranteed zero divergence incompressible flow)
+    return {
+      u: dPsi_dy * 45.0,
+      v: -dPsi_dx * 45.0 + 0.15 // Gentle downward gravitational settling
+    };
+  }
+
+  // --- Marine Snow Particles ---
+  const marineSnow = [];
+  const SNOW_COUNT = 45;
+
+  function initMarineSnow() {
+    marineSnow.length = 0;
+    for (let i = 0; i < SNOW_COUNT; i++) {
+      marineSnow.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        r: 0.8 + Math.random() * 1.4,
+        alpha: 0.2 + Math.random() * 0.35,
+        depth: 0.5 + Math.random() * 0.5
+      });
+    }
+  }
+
+  // --- Substrate PDE Fields ---
   let S_field, D_field, A_field;
 
   function subIdx(gx, gy) {
@@ -93,11 +132,12 @@
     }
   }
 
-  // --- Dendritic Autotrophs (Boundary-Clamped Branching Stalks) ---
+  // --- Kuramoto Coupled Oscillator Autotrophs ---
   const plants = [];
   const sparks = [];
   const decayPuffs = [];
   const MAX_PLANTS = 150;
+  let globalKuramotoCoupling = 0.04; // Baseline coupling; spikes during feeding/action waves
 
   class DendriticAutotroph {
     constructor(x, y, parent, generation, genome) {
@@ -113,16 +153,18 @@
       this.phi = 0.0;
       this.defCalc = 0;
       this.generation = generation || 1;
-      this.swayPhase = Math.random() * Math.PI * 2;
-      this.swaySpeed = 0.015 + Math.random() * 0.015;
+
+      // Kuramoto Phase Variables
+      this.theta = Math.random() * Math.PI * 2;          // Oscillator Phase [0, 2pi]
+      this.naturalFreq = 0.025 + (Math.random() - 0.5) * 0.008; // Intrinsic natural frequency omega_i
 
       this.genome = genome || {
-        gamma: 0.46,      // Photosynthetic efficiency
-        mu_p: 0.11,       // Maintenance cost
-        nu: 0.40,         // Mineral uptake
-        theta_rep: 28.0,  // Budding threshold
-        c_rep: 13.0,      // Budding cost
-        maxBranches: 2    // Max 2 child branches
+        gamma: 0.46,
+        mu_p: 0.11,
+        nu: 0.40,
+        theta_rep: 28.0,
+        c_rep: 13.0,
+        maxBranches: 2
       };
 
       if (this.parent) {
@@ -131,14 +173,38 @@
       }
     }
 
-    update(climate) {
+    update(climate, allPlants, couplingK) {
       this.age++;
       this.phi = Math.max(0.0, this.phi - 0.035);
       if (this.defCalc > 0) this.defCalc--;
 
-      // Prune dead child synapses
+      // Kuramoto Phase Coupling Step: dTheta/dt = omega_i + (K/N)*sum(sin(theta_j - theta_i))
+      let phaseCouplingSum = 0;
+      let connectedCount = 0;
+
+      // Primary coupling to direct tree parent and children
+      if (this.parent && allPlants.includes(this.parent)) {
+        phaseCouplingSum += Math.sin(this.parent.theta - this.theta);
+        connectedCount++;
+      }
+      for (let i = 0; i < this.children.length; i++) {
+        const ch = this.children[i];
+        if (allPlants.includes(ch)) {
+          phaseCouplingSum += Math.sin(ch.theta - this.theta);
+          connectedCount++;
+        }
+      }
+
+      if (connectedCount > 0) {
+        this.theta += this.naturalFreq + (couplingK / connectedCount) * phaseCouplingSum;
+      } else {
+        this.theta += this.naturalFreq;
+      }
+      this.theta %= Math.PI * 2;
+
+      // Synaptic relaxation
       for (const [child, w] of this.synapseWeights.entries()) {
-        if (!plants.includes(child)) {
+        if (!allPlants.includes(child)) {
           this.synapseWeights.delete(child);
           const cIdx = this.children.indexOf(child);
           if (cIdx !== -1) this.children.splice(cIdx, 1);
@@ -147,18 +213,17 @@
         }
       }
 
-      // Loam absorption
+      // Soil loam absorption
       const gx = Math.floor(this.x / SUB_SCALE);
       const gy = Math.floor(this.y / SUB_SCALE);
       const sIndex = subIdx(gx, gy);
-
       const u = Math.min(S_field[sIndex], this.genome.nu);
       S_field[sIndex] -= u;
 
       // Local crowding
       let localCrowd = 0;
-      for (let i = 0; i < plants.length; i++) {
-        const other = plants[i];
+      for (let i = 0; i < allPlants.length; i++) {
+        const other = allPlants[i];
         if (other === this) continue;
         if (Math.hypot(other.x - this.x, other.y - this.y) < 22) localCrowd++;
       }
@@ -169,20 +234,18 @@
         this.energy += (this.genome.gamma * climate.alpha_sun + u) - this.genome.mu_p;
       }
 
-      // Boundary-Aware Directional Branching
-      if (this.energy >= this.genome.theta_rep && this.children.length < this.genome.maxBranches && plants.length < MAX_PLANTS && Math.random() < 0.22) {
-        let baseAngle = -Math.PI / 2; // Upward
+      // Directional dendritic branching (clamped inside bounds)
+      if (this.energy >= this.genome.theta_rep && this.children.length < this.genome.maxBranches && allPlants.length < MAX_PLANTS && Math.random() < 0.22) {
+        let baseAngle = -Math.PI / 2;
         if (this.parent) {
           baseAngle = Math.atan2(this.y - this.parent.y, this.x - this.parent.x);
         }
         const branchAngle = baseAngle + (Math.random() - 0.5) * 1.3;
         const branchDist = 16 + Math.random() * 10;
 
-        // Clamp inside canvas bounds (avoids cross-screen torus streaks)
         const childX = Math.max(12, Math.min(width - 12, this.x + Math.cos(branchAngle) * branchDist));
         const childY = Math.max(12, Math.min(height - 12, this.y + Math.sin(branchAngle) * branchDist));
 
-        // Prevent zero-distance or cross-screen edge binds
         if (Math.hypot(childX - this.x, childY - this.y) < 40) {
           this.energy -= this.genome.c_rep;
           const child = new DendriticAutotroph(childX, childY, this, this.generation + 1);
@@ -192,12 +255,12 @@
     }
   }
 
-  // --- Heterotrophs with Smooth Momentum Steering ---
+  // --- Reynolds Boids Flocking Grazers ---
   const grazers = [];
   const apexPredators = [];
   const benthicCrabs = [];
 
-  class OrganicGrazer {
+  class FlockingGrazer {
     constructor(x, y, genome) {
       this.x = x;
       this.y = y;
@@ -208,90 +271,120 @@
       this.genome = genome || {
         b_eff: 3.6,
         r_sense: 80,
+        r_flock: 45,
         isArmored: Math.random() < 0.25,
-        maxSpeed: 1.35
+        maxSpeed: 1.4
       };
       this.pulse = Math.random() * Math.PI * 2;
     }
 
-    update(climate) {
+    update(climate, allGrazers, allApex, allPlants, now) {
       this.age++;
       this.energy -= 0.11;
       this.pulse += 0.08;
 
-      const gx = Math.floor(this.x / SUB_SCALE);
-      const gy = Math.floor(this.y / SUB_SCALE);
+      // 1. Fluid Curl Current Drift
+      const curl = getCurlVelocity(this.x, this.y, now);
 
-      // Alarm avoidance
-      let fleeX = 0;
-      let fleeY = 0;
-      for (let dx = -2; dx <= 2; dx++) {
-        for (let dy = -2; dy <= 2; dy++) {
-          const aVal = A_field[subIdx(gx + dx, gy + dy)];
-          if (aVal > 0.1) {
-            fleeX -= dx * aVal;
-            fleeY -= dy * aVal;
+      // 2. Reynolds Flocking Forces (Separation, Alignment, Cohesion)
+      let sepX = 0, sepY = 0;
+      let alignX = 0, alignY = 0;
+      let cohX = 0, cohY = 0;
+      let flockNeighbors = 0;
+
+      for (let i = 0; i < allGrazers.length; i++) {
+        const other = allGrazers[i];
+        if (other === this) continue;
+        const dist = Math.hypot(other.x - this.x, other.y - this.y);
+
+        if (dist > 0 && dist < this.genome.r_flock) {
+          // Separation
+          if (dist < 18) {
+            sepX += (this.x - other.x) / dist;
+            sepY += (this.y - other.y) / dist;
           }
+          // Alignment
+          alignX += other.vx;
+          alignY += other.vy;
+          // Cohesion
+          cohX += other.x;
+          cohY += other.y;
+          flockNeighbors++;
         }
       }
 
-      let desiredVx = 0;
-      let desiredVy = 0;
-      const fleeMag = Math.hypot(fleeX, fleeY);
+      let flockVx = 0;
+      let flockVy = 0;
+      if (flockNeighbors > 0) {
+        alignX /= flockNeighbors;
+        alignY /= flockNeighbors;
+        cohX = (cohX / flockNeighbors) - this.x;
+        cohY = (cohY / flockNeighbors) - this.y;
 
-      if (fleeMag > 0.3) {
-        desiredVx = (fleeX / fleeMag) * (this.genome.maxSpeed * 1.35);
-        desiredVy = (fleeY / fleeMag) * (this.genome.maxSpeed * 1.35);
-      } else {
-        // Nearest autotroph foraging
-        let closestDist = Infinity;
-        let targetPlant = null;
+        flockVx = sepX * 0.35 + alignX * 0.15 + cohX * 0.04;
+        flockVy = sepY * 0.35 + alignY * 0.15 + cohY * 0.04;
+      }
 
-        for (let i = 0; i < plants.length; i++) {
-          const p = plants[i];
-          if (p.energy <= 1.0) continue;
-          const d = Math.hypot(p.x - this.x, p.y - this.y);
-          if (d < this.genome.r_sense && d < closestDist) {
-            closestDist = d;
-            targetPlant = p;
-          }
-        }
-
-        if (targetPlant) {
-          const dx = targetPlant.x - this.x;
-          const dy = targetPlant.y - this.y;
-          desiredVx = (dx / closestDist) * this.genome.maxSpeed;
-          desiredVy = (dy / closestDist) * this.genome.maxSpeed;
-
-          if (closestDist < 10 && targetPlant.energy > 0) {
-            const defFactor = targetPlant.defCalc > 0 ? 0.5 : 1.0;
-            const bite = Math.min(targetPlant.energy, this.genome.b_eff * defFactor);
-            targetPlant.energy -= bite;
-            this.energy += bite * 0.9;
-            targetPlant.phi = 1.0;
-            propagateWave(targetPlant);
-          }
-        } else {
-          desiredVx = this.vx + (Math.random() - 0.5) * 0.4;
-          desiredVy = this.vy + (Math.random() - 0.5) * 0.4;
+      // 3. Apex Predator Flash Evasion
+      let evadeX = 0, evadeY = 0;
+      for (let i = 0; i < allApex.length; i++) {
+        const predator = allApex[i];
+        const pDist = Math.hypot(predator.x - this.x, predator.y - this.y);
+        if (pDist < 90) {
+          evadeX += (this.x - predator.x) / (pDist * 0.5);
+          evadeY += (this.y - predator.y) / (pDist * 0.5);
         }
       }
 
-      this.vx += (desiredVx - this.vx) * 0.08;
-      this.vy += (desiredVy - this.vy) * 0.08;
+      // 4. Foraging Steering
+      let forageVx = 0, forageVy = 0;
+      let closestPlant = null;
+      let closestDist = Infinity;
+
+      for (let i = 0; i < allPlants.length; i++) {
+        const p = allPlants[i];
+        if (p.energy <= 1.0) continue;
+        const d = Math.hypot(p.x - this.x, p.y - this.y);
+        if (d < this.genome.r_sense && d < closestDist) {
+          closestDist = d;
+          closestPlant = p;
+        }
+      }
+
+      if (closestPlant) {
+        forageVx = ((closestPlant.x - this.x) / closestDist) * this.genome.maxSpeed;
+        forageVy = ((closestPlant.y - this.y) / closestDist) * this.genome.maxSpeed;
+
+        if (closestDist < 10 && closestPlant.energy > 0) {
+          const defFactor = closestPlant.defCalc > 0 ? 0.5 : 1.0;
+          const bite = Math.min(closestPlant.energy, this.genome.b_eff * defFactor);
+          closestPlant.energy -= bite;
+          this.energy += bite * 0.9;
+          closestPlant.phi = 1.0;
+          globalKuramotoCoupling = 0.22; // Spike Kuramoto coupling on graze event!
+          propagateWave(closestPlant);
+        }
+      }
+
+      // Combine Steering Vectors with Smooth Fluid Momentum
+      const totalDesiredX = curl.u * 0.15 + flockVx * 0.8 + evadeX * 2.2 + forageVx * 1.0;
+      const totalDesiredY = curl.v * 0.15 + flockVy * 0.8 + evadeY * 2.2 + forageVy * 1.0;
+
+      this.vx += (totalDesiredX - this.vx) * 0.08;
+      this.vy += (totalDesiredY - this.vy) * 0.08;
 
       const spd = Math.hypot(this.vx, this.vy);
-      if (spd > this.genome.maxSpeed * 1.35) {
-        this.vx = (this.vx / spd) * (this.genome.maxSpeed * 1.35);
-        this.vy = (this.vy / spd) * (this.genome.maxSpeed * 1.35);
+      if (spd > this.genome.maxSpeed * 1.45) {
+        this.vx = (this.vx / spd) * (this.genome.maxSpeed * 1.45);
+        this.vy = (this.vy / spd) * (this.genome.maxSpeed * 1.45);
       }
 
       this.x = (this.x + this.vx + width) % width;
       this.y = (this.y + this.vy + height) % height;
 
-      if (this.energy > 85.0 && grazers.length < 60) {
+      if (this.energy > 85.0 && allGrazers.length < 65) {
         this.energy -= 40.0;
-        grazers.push(new OrganicGrazer((this.x + 6) % width, (this.y + 6) % height, mutateGenome(this.genome)));
+        grazers.push(new FlockingGrazer((this.x + 6) % width, (this.y + 6) % height, mutateGenome(this.genome)));
       }
     }
   }
@@ -302,9 +395,9 @@
       this.y = y;
       this.vx = (Math.random() - 0.5) * 1.5;
       this.vy = (Math.random() - 0.5) * 1.5;
-      this.energy = 90.0;
-      this.maxSpeed = 1.6;
-      this.r_hunt = 140;
+      this.energy = 95.0;
+      this.maxSpeed = 1.65;
+      this.r_hunt = 145;
       this.pulse = Math.random() * Math.PI;
     }
 
@@ -405,6 +498,7 @@
     return {
       b_eff: Math.max(1.0, g.b_eff * mut()),
       r_sense: Math.min(120, Math.max(40, g.r_sense * mut())),
+      r_flock: Math.min(60, Math.max(25, (g.r_flock || 45) * mut())),
       isArmored: Math.random() < 0.15 ? !g.isArmored : g.isArmored,
       maxSpeed: Math.max(0.7, Math.min(2.1, g.maxSpeed * mut()))
     };
@@ -438,7 +532,6 @@
 
       plant.phi = Math.max(plant.phi, phi);
 
-      // Downstream tendrils
       for (let i = 0; i < plant.children.length; i++) {
         const child = plant.children[i];
         if (Math.hypot(child.x - plant.x, child.y - plant.y) < 50) {
@@ -459,7 +552,6 @@
         }
       }
 
-      // Upstream parent stalk
       if (plant.parent && !visited.has(plant.parent)) {
         if (Math.hypot(plant.parent.x - plant.x, plant.parent.y - plant.y) < 50) {
           const nextPhi = phi * 0.68;
@@ -486,7 +578,8 @@
     sparks.length = 0;
     decayPuffs.length = 0;
 
-    // Seed 6-8 root coral colonies along the seabed
+    initMarineSnow();
+
     const rootCount = 7;
     for (let k = 0; k < rootCount; k++) {
       const rootX = 35 + (k / (rootCount - 1)) * (width - 70) + (Math.random() - 0.5) * 25;
@@ -503,7 +596,7 @@
       }
     }
 
-    for (let i = 0; i < 35; i++) grazers.push(new OrganicGrazer(Math.random() * width, Math.random() * height));
+    for (let i = 0; i < 38; i++) grazers.push(new FlockingGrazer(Math.random() * width, Math.random() * height));
     for (let i = 0; i < 16; i++) benthicCrabs.push(new OrganicBenthicCrab(Math.random() * width));
     for (let i = 0; i < 4; i++) apexPredators.push(new OrganicApex(Math.random() * width, Math.random() * height));
   }
@@ -578,7 +671,7 @@
     if (mEnv) mEnv.textContent = `Water Temp: ${climate.temp.toFixed(1)}°C | Solar: ${climate.lux}% | pH: ${climate.ph.toFixed(2)}`;
   }
 
-  // --- Render Loop ---
+  // --- Main Simulation Loop ---
   let isPaused = false;
   let showSubstrate = true;
   let lastTick = performance.now();
@@ -596,12 +689,15 @@
         currentClimateIdx = (currentClimateIdx + 1) % CLIMATES.length;
       }
 
+      // Relax global Kuramoto coupling toward baseline
+      globalKuramotoCoupling = Math.max(0.04, globalKuramotoCoupling - 0.001);
+
       stepSubstrates(climate);
 
-      // Step plants
+      // Step autotrophs (Kuramoto Coupled Oscillators)
       for (let i = plants.length - 1; i >= 0; i--) {
         const p = plants[i];
-        p.update(climate);
+        p.update(climate, plants, globalKuramotoCoupling);
         if (p.energy <= 0 || p.age > p.maxAge) {
           const gx = Math.floor(p.x / SUB_SCALE);
           const gy = Math.floor(p.y / SUB_SCALE);
@@ -617,9 +713,9 @@
         }
       }
 
-      // Step heterotrophs
+      // Step Flocking Grazers (Reynolds Boids + Lotka-Volterra)
       for (let i = grazers.length - 1; i >= 0; i--) {
-        grazers[i].update(climate);
+        grazers[i].update(climate, grazers, apexPredators, plants, now);
         if (grazers[i].energy <= 0) {
           spawnDecayPuff(grazers[i].x, grazers[i].y, 'grazer');
           grazers.splice(i, 1);
@@ -640,6 +736,14 @@
           spawnDecayPuff(apexPredators[i].x, apexPredators[i].y, 'apex');
           apexPredators.splice(i, 1);
         }
+      }
+
+      // Update Marine Snow with Incompressible Curl Field
+      for (let i = 0; i < marineSnow.length; i++) {
+        const s = marineSnow[i];
+        const vel = getCurlVelocity(s.x, s.y, now);
+        s.x = (s.x + vel.u * s.depth * 0.4 + width) % width;
+        s.y = (s.y + vel.v * s.depth * 0.4 + height) % height;
       }
 
       if (now - lastTick > 350) {
@@ -680,21 +784,32 @@
       ctx.restore();
     }
 
-    // 2. Directional Branching Dendritic Tendrils (Boundary-Safe, No Streaks)
+    // 2. Marine Snow Drift Eddies
+    ctx.save();
+    for (let i = 0; i < marineSnow.length; i++) {
+      const s = marineSnow[i];
+      ctx.fillStyle = `rgba(180, 235, 210, ${s.alpha})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 3. Dendritic Tendrils with Kuramoto Harmonic Glow
     for (let i = 0; i < plants.length; i++) {
       const p = plants[i];
       if (p.parent && plants.includes(p.parent)) {
         const dist = Math.hypot(p.parent.x - p.x, p.parent.y - p.y);
-        // Strict boundary check: ignore wrapped cross-screen distances
         if (dist < 45) {
           const firing = p.phi > 0.05 || p.parent.phi > 0.05;
           const w = p.parent.synapseWeights.get(p) || 1.0;
-          const alpha = firing ? Math.min(0.85, 0.35 * w) : Math.min(0.25, 0.08 * w);
+          const phaseSyncBrightness = (Math.sin(p.theta) + 1.0) * 0.5; // Harmonic breathing pulse
+          const alpha = firing ? Math.min(0.85, 0.35 * w) : Math.min(0.35, (0.10 + phaseSyncBrightness * 0.15) * w);
 
-          ctx.strokeStyle = firing ? `rgba(46, 230, 160, ${alpha})` : `rgba(34, 153, 94, ${alpha})`;
-          ctx.lineWidth = firing ? 1.8 : 1.0;
+          ctx.strokeStyle = firing ? `rgba(46, 230, 160, ${alpha})` : `rgba(34, 165, 100, ${alpha})`;
+          ctx.lineWidth = firing ? 1.8 : 1.0 + phaseSyncBrightness * 0.4;
 
-          const sway = Math.sin(p.swayPhase + now * 0.002) * 2.5;
+          const sway = Math.sin(p.theta) * 2.2;
           const midX = (p.parent.x + p.x) * 0.5 + sway;
           const midY = (p.parent.y + p.y) * 0.5;
 
@@ -706,23 +821,22 @@
       }
     }
 
-    // 3. Autotroph Polyps
+    // 4. Autotroph Polyps with Kuramoto Synchronous Bioluminescence
     for (let i = 0; i < plants.length; i++) {
       const p = plants[i];
-      p.swayPhase += p.swaySpeed;
-      const breath = Math.sin(p.swayPhase) * 0.7;
-      const r = Math.min(6.5, 2.5 + (p.energy / 14.0) + p.phi * 2.5 + breath);
+      const breath = (Math.sin(p.theta) + 1.0) * 0.5; // [0, 1] synchronous breathing
+      const r = Math.min(6.5, 2.4 + (p.energy / 15.0) + p.phi * 2.2 + breath * 0.8);
 
       ctx.beginPath();
-      ctx.fillStyle = p.phi > 0.1 ? '#a3e4d7' : '#2ecc71';
-      ctx.shadowColor = p.phi > 0.1 ? '#48c9b0' : 'rgba(46, 204, 113, 0.4)';
-      ctx.shadowBlur = p.phi > 0.1 ? 10 : 3;
+      ctx.fillStyle = p.phi > 0.1 ? '#a3e4d7' : `rgba(46, ${Math.floor(180 + breath * 60)}, ${Math.floor(110 + breath * 40)}, 0.95)`;
+      ctx.shadowColor = p.phi > 0.1 ? '#48c9b0' : 'rgba(46, 204, 113, 0.45)';
+      ctx.shadowBlur = p.phi > 0.1 ? 10 : 3 + breath * 4;
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.shadowBlur = 0;
 
-    // 4. Bioluminescent Traveling Sparks (Boundary Safe)
+    // 5. Bioluminescent Traveling Sparks
     for (let i = sparks.length - 1; i >= 0; i--) {
       const sp = sparks[i];
       if (Math.hypot(sp.x1 - sp.x2, sp.y1 - sp.y2) > 45) {
@@ -746,7 +860,7 @@
     }
     ctx.shadowBlur = 0;
 
-    // 5. Benthic Crabs
+    // 6. Benthic Crabs
     for (let i = 0; i < benthicCrabs.length; i++) {
       const b = benthicCrabs[i];
       ctx.beginPath();
@@ -755,32 +869,47 @@
       ctx.fill();
     }
 
-    // 6. Grazers
+    // 7. Flocking Grazers (Oriented Shoal Fish Heading)
     for (let i = 0; i < grazers.length; i++) {
       const g = grazers[i];
+      const heading = Math.atan2(g.vy, g.vx);
       const glow = Math.sin(g.pulse) * 1.2;
+
+      ctx.save();
+      ctx.translate(g.x, g.y);
+      ctx.rotate(heading);
+
+      // Organic fish tear-drop/fin morphology
       ctx.beginPath();
       ctx.fillStyle = g.genome.isArmored ? '#f39c12' : '#2ecc71';
       ctx.shadowColor = g.genome.isArmored ? '#f39c12' : '#2ecc71';
       ctx.shadowBlur = 5;
-      ctx.arc(g.x, g.y, Math.max(1.8, 2.6 + glow * 0.3), 0, Math.PI * 2);
+      ctx.ellipse(0, 0, 4.0 + glow * 0.3, 2.2, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
     }
     ctx.shadowBlur = 0;
 
-    // 7. Apex Predators
+    // 8. Apex Predators (Stalking Leviathan Halos)
     for (let i = 0; i < apexPredators.length; i++) {
       const a = apexPredators[i];
+      const heading = Math.atan2(a.vy, a.vx);
+
+      ctx.save();
+      ctx.translate(a.x, a.y);
+      ctx.rotate(heading);
+
       ctx.beginPath();
       ctx.fillStyle = '#e74c3c';
       ctx.shadowColor = '#e74c3c';
-      ctx.shadowBlur = 10;
-      ctx.arc(a.x, a.y, 5.0 + Math.sin(a.pulse) * 0.8, 0, Math.PI * 2);
+      ctx.shadowBlur = 12;
+      ctx.ellipse(0, 0, 6.5 + Math.sin(a.pulse) * 0.8, 3.8, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
     }
     ctx.shadowBlur = 0;
 
-    // 8. Soft Atmospheric Decay Puffs
+    // 9. Soft Atmospheric Decay Puffs
     for (let i = decayPuffs.length - 1; i >= 0; i--) {
       const p = decayPuffs[i];
       p.x += p.vx;
@@ -830,6 +959,7 @@
   const btnHeat = document.getElementById('btnHeatPulse');
   if (btnHeat) {
     btnHeat.addEventListener('click', () => {
+      globalKuramotoCoupling = 0.35; // Global synchronization cascade on pulse!
       for (let i = 0; i < A_field.length; i++) {
         if (Math.random() < 0.25) A_field[i] = Math.min(8.0, A_field[i] + 3.0);
       }
