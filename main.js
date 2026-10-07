@@ -1,6 +1,6 @@
-// Synapse Reef v2.9 - Seasonal Environmental Cycle & Dynamic Breathing Turing Substrate
-// Continuous Thermodynamic & Solar Seasons, Morphogenesis Breathing Waves, Coupled Kuramoto Oscillators,
-// Reynolds Flocking Shoals, and Incompressible Marine Currents.
+// Synapse Reef v3.0 - High-Octane Trophic Pursuit & Energy-Gated Burst Sprint Engine
+// Apex Predators: Base cruise speed > prey, explosive burst sprints consuming stored metabolic reserves,
+// Dynamic trail distortion, seasonal thermodynamic cycles, and Turing reaction-diffusion substrates.
 
 (function () {
   'use strict';
@@ -58,7 +58,6 @@
   }
 
   // --- Continuous Seasonal Environmental Cycle Engine ---
-  // Smooth sinusoidal transitions across 4 oceanic climate regimes
   const SEASONS = [
     {
       name: 'Verdant Solstice',
@@ -110,7 +109,7 @@
     }
   ];
 
-  let seasonalTime = 0; // Continuous seasonal cycle phase [0 -> 2pi]
+  let seasonalTime = 0;
   const currentClimate = {
     name: 'Verdant Solstice',
     desc: '',
@@ -125,7 +124,7 @@
   };
 
   function updateSeasonalCycle() {
-    seasonalTime += 0.0018; // Complete seasonal cycle every ~55 seconds
+    seasonalTime += 0.0018;
     const normalizedPhase = (seasonalTime % (Math.PI * 2)) / (Math.PI * 2);
     const seasonIndex = Math.floor(normalizedPhase * 4) % 4;
     const nextSeasonIndex = (seasonIndex + 1) % 4;
@@ -133,8 +132,6 @@
 
     const sA = SEASONS[seasonIndex];
     const sB = SEASONS[nextSeasonIndex];
-
-    // Smooth cosine interpolation between seasons
     const smoothT = (1 - Math.cos(seasonBlend * Math.PI)) * 0.5;
 
     currentClimate.name = sA.name;
@@ -193,12 +190,10 @@
     }
   }
 
-  // --- Breathing Gray-Scott Turing Engine Coupled to Seasons ---
   function stepTuringMorphogenesis() {
     morphCycleTime += 0.005;
     const breathingPulse = Math.sin(morphCycleTime) * 0.004;
 
-    // Base feed and kill modulated by current season + breathing wave
     const targetF = currentClimate.turingF + breathingPulse;
     const targetK = currentClimate.turingK + breathingPulse * 0.5;
 
@@ -214,7 +209,6 @@
         const lapU = (Turing_U[subIdx(x+1, y)] + Turing_U[subIdx(x-1, y)] + Turing_U[subIdx(x, y+1)] + Turing_U[subIdx(x, y-1)]) * 0.25 - u;
         const lapV = (Turing_V[subIdx(x+1, y)] + Turing_V[subIdx(x-1, y)] + Turing_V[subIdx(x, y+1)] + Turing_V[subIdx(x, y-1)]) * 0.25 - v;
 
-        // Mineral loam S boosts F; alarm pheromones A destabilize K
         const localF = targetF + (S_field[i] / 10.0) * 0.008;
         const localK = targetK + (A_field[i] / 8.0) * 0.006;
 
@@ -245,7 +239,7 @@
     }
   }
 
-  // --- Incompressible Curl Noise Field ---
+  // --- Incompressible Curl Current ---
   function getCurlVelocity(x, y, t) {
     const scale = 0.0035;
     const eps = 1.0;
@@ -327,7 +321,6 @@
       this.phi = Math.max(0.0, this.phi - 0.035);
       if (this.defCalc > 0) this.defCalc--;
 
-      // Kuramoto phase locking
       let phaseCouplingSum = 0;
       let connectedCount = 0;
 
@@ -406,7 +399,7 @@
     }
   }
 
-  // --- Loosened Fluid Boids Grazers ---
+  // --- Grazers (Herbivores: Calibrated Cruising Speed = 1.30) ---
   const grazers = [];
   const apexPredators = [];
   const benthicCrabs = [];
@@ -415,8 +408,8 @@
     constructor(x, y, genome) {
       this.x = x;
       this.y = y;
-      this.vx = (Math.random() - 0.5) * 1.4;
-      this.vy = (Math.random() - 0.5) * 1.4;
+      this.vx = (Math.random() - 0.5) * 1.2;
+      this.vy = (Math.random() - 0.5) * 1.2;
       this.energy = 50.0;
       this.age = 0;
       this.wanderAngle = Math.random() * Math.PI * 2;
@@ -425,7 +418,7 @@
         r_sense: 90,
         r_flock: 55,
         isArmored: Math.random() < 0.25,
-        maxSpeed: 1.45
+        maxSpeed: 1.30
       };
       this.pulse = Math.random() * Math.PI * 2;
     }
@@ -438,8 +431,8 @@
       const curl = getCurlVelocity(this.x, this.y, now);
 
       this.wanderAngle += (Math.random() - 0.5) * 0.4;
-      const wanderVx = Math.cos(this.wanderAngle) * 0.6;
-      const wanderVy = Math.sin(this.wanderAngle) * 0.6;
+      const wanderVx = Math.cos(this.wanderAngle) * 0.5;
+      const wanderVy = Math.sin(this.wanderAngle) * 0.5;
 
       let sepX = 0, sepY = 0;
       let alignX = 0, alignY = 0;
@@ -481,9 +474,9 @@
       for (let i = 0; i < allApex.length; i++) {
         const predator = allApex[i];
         const pDist = Math.hypot(predator.x - this.x, predator.y - this.y);
-        if (pDist < 85) {
-          evadeX += (this.x - predator.x) / (pDist * 0.4);
-          evadeY += (this.y - predator.y) / (pDist * 0.4);
+        if (pDist < 95) {
+          evadeX += (this.x - predator.x) / (pDist * 0.35);
+          evadeY += (this.y - predator.y) / (pDist * 0.35);
           inDanger = true;
         }
       }
@@ -522,17 +515,18 @@
       let totalDesiredY = curl.v * 0.12 + wanderVy * 0.4 + flockVy * 0.7 + forageVy * 0.9;
 
       if (inDanger) {
-        totalDesiredX = evadeX * 2.8 + wanderVx * 0.2;
-        totalDesiredY = evadeY * 2.8 + wanderVy * 0.2;
+        totalDesiredX = evadeX * 2.9 + wanderVx * 0.2;
+        totalDesiredY = evadeY * 2.9 + wanderVy * 0.2;
       }
 
       this.vx += (totalDesiredX - this.vx) * 0.09;
       this.vy += (totalDesiredY - this.vy) * 0.09;
 
+      const maxAllowed = inDanger ? 1.70 : this.genome.maxSpeed;
       const spd = Math.hypot(this.vx, this.vy);
-      if (spd > this.genome.maxSpeed * 1.45) {
-        this.vx = (this.vx / spd) * (this.genome.maxSpeed * 1.45);
-        this.vy = (this.vy / spd) * (this.genome.maxSpeed * 1.45);
+      if (spd > maxAllowed) {
+        this.vx = (this.vx / spd) * maxAllowed;
+        this.vy = (this.vy / spd) * maxAllowed;
       }
 
       this.x = (this.x + this.vx + width) % width;
@@ -545,26 +539,29 @@
     }
   }
 
-  // --- Agile Apex Predators ---
+  // --- Dynamic Apex Predators: Faster Base Cruise + Energy-Gated Burst Sprint ---
   class OrganicApex {
     constructor(x, y) {
       this.x = x;
       this.y = y;
-      this.vx = (Math.random() - 0.5) * 1.6;
-      this.vy = (Math.random() - 0.5) * 1.6;
-      this.energy = 110.0;
-      this.cruiseSpeed = 1.55;
-      this.sprintSpeed = 2.45;
-      this.r_hunt = 170;
-      this.mass = 85.0;
+      this.vx = (Math.random() - 0.5) * 1.8;
+      this.vy = (Math.random() - 0.5) * 1.8;
+      this.energy = 120.0;
+      this.baseCruiseSpeed = 1.65;
+      this.burstSprintSpeed = 3.10;
+      this.minSprintEnergy = 35.0;
+      this.r_hunt = 185;
+      this.mass = 90.0;
       this.sprintCooldown = 0;
+      this.isSprinting = false;
       this.pulse = Math.random() * Math.PI;
     }
 
     update() {
-      this.energy -= 0.09;
+      this.energy -= 0.08;
       this.pulse += 0.05;
       if (this.sprintCooldown > 0) this.sprintCooldown--;
+      this.isSprinting = false;
 
       let nearest = null;
       let minDist = Infinity;
@@ -584,13 +581,17 @@
         const dx = nearest.g.x - this.x;
         const dy = nearest.g.y - this.y;
 
-        const isSprinting = nearest.dist < 70 && this.sprintCooldown === 0;
-        const currentMaxSpeed = isSprinting ? this.sprintSpeed : this.cruiseSpeed;
+        if (nearest.dist < 110 && this.energy > this.minSprintEnergy && this.sprintCooldown === 0) {
+          this.isSprinting = true;
+          this.energy -= 0.18;
+          desiredVx = (dx / nearest.dist) * this.burstSprintSpeed;
+          desiredVy = (dy / nearest.dist) * this.burstSprintSpeed;
+        } else {
+          desiredVx = (dx / nearest.dist) * this.baseCruiseSpeed;
+          desiredVy = (dy / nearest.dist) * this.baseCruiseSpeed;
+        }
 
-        desiredVx = (dx / nearest.dist) * currentMaxSpeed;
-        desiredVy = (dy / nearest.dist) * currentMaxSpeed;
-
-        if (nearest.dist < 15) {
+        if (nearest.dist < 16) {
           const gx = Math.floor(this.x / SUB_SCALE);
           const gy = Math.floor(this.y / SUB_SCALE);
           const sIndex = subIdx(gx, gy);
@@ -600,28 +601,36 @@
             this.energy -= 2.0;
             this.vx *= -0.7;
             this.vy *= -0.7;
-            this.sprintCooldown = 40;
+            this.sprintCooldown = 35;
           } else {
-            this.energy = Math.min(160.0, this.energy + 48.0);
+            this.energy = Math.min(180.0, this.energy + 52.0);
             A_field[sIndex] = Math.min(8.0, A_field[sIndex] + 4.5);
-            spawnDecayPuff(nearest.g.x, nearest.g.y, 'grazer');
+            spawnDecayPuff(nearest.g.x, nearest.g.y, 'apex');
             injectMorphogen(nearest.g.x, nearest.g.y, 3, 0.45, -0.35);
+
             grazers.splice(nearest.idx, 1);
-            this.sprintCooldown = 25;
+            this.sprintCooldown = 20;
           }
         }
       } else {
-        desiredVx += (Math.random() - 0.5) * 0.35;
-        desiredVy += (Math.random() - 0.5) * 0.35;
+        desiredVx += (Math.random() - 0.5) * 0.4;
+        desiredVy += (Math.random() - 0.5) * 0.4;
+        const curSpd = Math.hypot(desiredVx, desiredVy);
+        if (curSpd > this.baseCruiseSpeed) {
+          desiredVx = (desiredVx / curSpd) * this.baseCruiseSpeed;
+          desiredVy = (desiredVy / curSpd) * this.baseCruiseSpeed;
+        }
       }
 
-      this.vx += (desiredVx - this.vx) * 0.08;
-      this.vy += (desiredVy - this.vy) * 0.08;
+      const accel = this.isSprinting ? 0.14 : 0.08;
+      this.vx += (desiredVx - this.vx) * accel;
+      this.vy += (desiredVy - this.vy) * accel;
+
       this.x = (this.x + this.vx + width) % width;
       this.y = (this.y + this.vy + height) % height;
 
-      if (this.energy > 145.0 && apexPredators.length < 6) {
-        this.energy -= 65.0;
+      if (this.energy > 155.0 && apexPredators.length < 6) {
+        this.energy -= 70.0;
         apexPredators.push(new OrganicApex(this.x, this.y));
       }
     }
@@ -669,7 +678,7 @@
       r_sense: Math.min(120, Math.max(40, g.r_sense * mut())),
       r_flock: Math.min(65, Math.max(30, (g.r_flock || 55) * mut())),
       isArmored: Math.random() < 0.15 ? !g.isArmored : g.isArmored,
-      maxSpeed: Math.max(0.8, Math.min(2.1, g.maxSpeed * mut()))
+      maxSpeed: Math.max(0.8, Math.min(1.5, (g.maxSpeed || 1.30) * mut()))
     };
   }
 
@@ -846,7 +855,6 @@
     ctx.clearRect(0, 0, width, height);
 
     if (!isPaused) {
-      // Advance continuous seasonal environmental cycle
       updateSeasonalCycle();
 
       globalKuramotoCoupling = Math.max(0.04, globalKuramotoCoupling - 0.001);
@@ -890,6 +898,7 @@
         }
       }
 
+      // Step Apex Predators
       for (let i = apexPredators.length - 1; i >= 0; i--) {
         apexPredators[i].update();
         if (apexPredators[i].energy <= 0) {
@@ -945,7 +954,6 @@
           const turingV = Turing_V[i];
           const turingU = Turing_U[i];
 
-          // Dynamic seasonal palette blending
           const r = Math.min(255, Math.floor(hue.r + aVal * 200 + turingV * 40));
           const g = Math.min(255, Math.floor(hue.g + sVal * 120 + turingV * 110 + (1.0 - turingU) * 35));
           const b = Math.min(255, Math.floor(hue.b + dVal * 100 + turingV * 85 + turingU * 20));
@@ -968,18 +976,19 @@
       ctx.restore();
     }
 
-    // 2. Gravitational Apex Lensing Halo Wakes
+    // 2. Gravitational Apex Lensing Halo Wakes (Intensified during burst sprint)
     for (let a = 0; a < apexPredators.length; a++) {
       const apex = apexPredators[a];
-      const grad = ctx.createRadialGradient(apex.x, apex.y, 4, apex.x, apex.y, 45);
-      grad.addColorStop(0, 'rgba(231, 76, 60, 0.22)');
-      grad.addColorStop(0.5, 'rgba(155, 89, 182, 0.10)');
+      const haloRadius = apex.isSprinting ? 60 : 45;
+      const grad = ctx.createRadialGradient(apex.x, apex.y, 4, apex.x, apex.y, haloRadius);
+      grad.addColorStop(0, apex.isSprinting ? 'rgba(255, 75, 43, 0.40)' : 'rgba(231, 76, 60, 0.22)');
+      grad.addColorStop(0.5, apex.isSprinting ? 'rgba(230, 126, 34, 0.20)' : 'rgba(155, 89, 182, 0.10)');
       grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
       ctx.save();
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(apex.x, apex.y, 45, 0, Math.PI * 2);
+      ctx.arc(apex.x, apex.y, haloRadius, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -1089,7 +1098,7 @@
     }
     ctx.shadowBlur = 0;
 
-    // 9. Apex Predators (Stalking Leviathan Halos)
+    // 9. Apex Predators (Dynamic Flare During Burst Sprint)
     for (let i = 0; i < apexPredators.length; i++) {
       const a = apexPredators[i];
       const heading = Math.atan2(a.vy, a.vx);
@@ -1099,10 +1108,11 @@
       ctx.rotate(heading);
 
       ctx.beginPath();
-      ctx.fillStyle = '#e74c3c';
-      ctx.shadowColor = '#e74c3c';
-      ctx.shadowBlur = 12;
-      ctx.ellipse(0, 0, 6.5 + Math.sin(a.pulse) * 0.8, 3.8, 0, 0, Math.PI * 2);
+      ctx.fillStyle = a.isSprinting ? '#ff3838' : '#e74c3c';
+      ctx.shadowColor = a.isSprinting ? '#ff7675' : '#e74c3c';
+      ctx.shadowBlur = a.isSprinting ? 18 : 12;
+      const len = a.isSprinting ? 8.2 : 6.5;
+      ctx.ellipse(0, 0, len + Math.sin(a.pulse) * 0.8, 3.8, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -1165,7 +1175,6 @@
       for (let i = 0; i < plants.length; i++) {
         if (Math.random() < 0.2) plants[i].energy -= 8.0;
       }
-      // Jump seasonal cycle to next phase
       seasonalTime += Math.PI * 0.5;
     });
   }
