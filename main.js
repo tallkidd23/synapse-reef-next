@@ -1,6 +1,6 @@
-// Synapse Reef v2.7 - Dynamic Flocking & Trophic Balance Engine
-// Loosened Boids with Stochastic Wandering, Burst-Sprint Apex Hunting,
-// Gray-Scott Turing Morphogenesis, Kuramoto Phase-Locking, and Fluid Eddies
+// Synapse Reef v2.8 - Dynamic Breathing Gray-Scott Turing Morphogenesis Engine
+// Bi-directional Morphogenesis Breathing, Continuous Phase Transitions (Spots -> Mazes -> Coral Solitons -> Waves),
+// Direct Live Substrate Coupling to Organism Grazing, Apex Feeding, and Neural Waves.
 
 (function () {
   'use strict';
@@ -57,17 +57,32 @@
     });
   }
 
-  // --- Climate Regimes State Machine ---
+  // --- Dynamic Morphogenesis Regimes in Phase Space (F, k) ---
+  // Smoothly breathes between Solitons, Labyrinthine Mazes, Moving Spots, and Coral Waves
+  const TURING_REGIMES = [
+    { name: 'Soliton Atolls', F: 0.030, k: 0.062, Du: 0.16, Dv: 0.08, label: 'Labyrinth Expansion' },
+    { name: 'Labyrinthine Coral', F: 0.038, k: 0.061, Du: 0.16, Dv: 0.08, label: 'Dense Mazes' },
+    { name: 'Bioluminescent Spots', F: 0.022, k: 0.051, Du: 0.19, Dv: 0.05, label: 'Cellular Mitosis' },
+    { name: 'Pulsing Wave Fronts', F: 0.014, k: 0.047, Du: 0.14, Dv: 0.06, label: 'Dissolving Ripple' },
+    { name: 'Reticulated Loam', F: 0.054, k: 0.063, Du: 0.16, Dv: 0.08, label: 'Organic Mesh' }
+  ];
+
+  let currentRegimeIdx = 0;
+  let targetRegimeIdx = 1;
+  let morphCycleTime = 0; // Continuous breathing phase tracker
+  let currentF = 0.034;
+  let currentK = 0.060;
+
   const CLIMATES = [
-    { name: 'Verdant Solstice', alpha_sun: 1.05, beta_climate: 0.005, temp: 25.5, lux: 100, ph: 8.15, F: 0.038, k: 0.061 },
-    { name: 'Nutrient Monsoon', alpha_sun: 0.85, beta_climate: 0.015, temp: 23.5, lux: 75, ph: 8.05, F: 0.046, k: 0.063 },
-    { name: 'Arid Eclipse', alpha_sun: 0.65, beta_climate: 0.001, temp: 28.0, lux: 45, ph: 8.25, F: 0.030, k: 0.058 },
-    { name: 'Bioluminescent Bloom', alpha_sun: 1.25, beta_climate: 0.008, temp: 26.2, lux: 120, ph: 8.20, F: 0.054, k: 0.062 }
+    { name: 'Verdant Solstice', alpha_sun: 1.05, beta_climate: 0.005, temp: 25.5, lux: 100, ph: 8.15 },
+    { name: 'Nutrient Monsoon', alpha_sun: 0.85, beta_climate: 0.015, temp: 23.5, lux: 75, ph: 8.05 },
+    { name: 'Arid Eclipse', alpha_sun: 0.65, beta_climate: 0.001, temp: 28.0, lux: 45, ph: 8.25 },
+    { name: 'Bioluminescent Bloom', alpha_sun: 1.25, beta_climate: 0.008, temp: 26.2, lux: 120, ph: 8.20 }
   ];
   let currentClimateIdx = 0;
   let climateTick = 0;
 
-  // --- Gray-Scott Reaction-Diffusion Turing Morphogenesis & Substrates ---
+  // --- Substrate Fields & Morphogens ---
   let S_field, D_field, A_field;
   let Turing_U, Turing_V, next_U, next_V;
 
@@ -98,29 +113,62 @@
 
         Turing_U[i] = 1.0;
         Turing_V[i] = 0.0;
-        if (Math.random() < 0.08) Turing_V[i] = 0.8 + Math.random() * 0.2;
+        // Seed initial organic Turing perturbations
+        if (Math.hypot(x - SUB_COLS * 0.5, y - SUB_ROWS * 0.6) < 6 || Math.random() < 0.05) {
+          Turing_V[i] = 0.7 + Math.random() * 0.3;
+        }
       }
     }
   }
 
-  function stepTuringMorphogenesis(climate) {
+  // --- Breathing Gray-Scott Turing Engine Coupled to Live Organisms ---
+  function stepTuringMorphogenesis() {
+    // 1. Smoothly interpolate feed F and kill k parameters along breathing sine trajectory
+    morphCycleTime += 0.004;
+    const blend = (Math.sin(morphCycleTime) + 1.0) * 0.5; // [0, 1] smooth expansion/recession wave
+
+    // When approaching transition trough, switch next mathematical regime seamlessly
+    if (blend < 0.02 && Math.random() < 0.15) {
+      currentRegimeIdx = targetRegimeIdx;
+      targetRegimeIdx = (targetRegimeIdx + 1) % TURING_REGIMES.length;
+    }
+
+    const regA = TURING_REGIMES[currentRegimeIdx];
+    const regB = TURING_REGIMES[targetRegimeIdx];
+
+    const targetF = regA.F * (1 - blend) + regB.F * blend;
+    const targetK = regA.k * (1 - blend) + regB.k * blend;
+
+    currentF += (targetF - currentF) * 0.03;
+    currentK += (targetK - currentK) * 0.03;
+
     const Du = 0.16;
     const Dv = 0.08;
-    const F = climate.F;
-    const k = climate.k;
 
+    // 2. Compute Reaction-Diffusion PDE with Live Biological Coupling
     for (let x = 0; x < SUB_COLS; x++) {
       for (let y = 0; y < SUB_ROWS; y++) {
         const i = subIdx(x, y);
         const u = Turing_U[i];
         const v = Turing_V[i];
 
+        // 5-point discrete Laplacian operator on torus
         const lapU = (Turing_U[subIdx(x+1, y)] + Turing_U[subIdx(x-1, y)] + Turing_U[subIdx(x, y+1)] + Turing_U[subIdx(x, y-1)]) * 0.25 - u;
         const lapV = (Turing_V[subIdx(x+1, y)] + Turing_V[subIdx(x-1, y)] + Turing_V[subIdx(x, y+1)] + Turing_V[subIdx(x, y-1)]) * 0.25 - v;
 
+        // Local environmental modulations:
+        // - Soil mineral loam (S) fuels morphogen generation (+F)
+        // - Alarm pheromones (A) suppress stability, causing morphogen breakdown (+k)
+        const localF = currentF + (S_field[i] / 10.0) * 0.008;
+        const localK = currentK + (A_field[i] / 8.0) * 0.006;
+
         const uvv = u * v * v;
-        next_U[i] = Math.max(0, Math.min(1.0, u + Du * lapU - uvv + F * (1.0 - u)));
-        next_V[i] = Math.max(0, Math.min(1.0, v + Dv * lapV + uvv - (F + k) * v));
+        let nU = u + (Du * lapU - uvv + localF * (1.0 - u));
+        let nV = v + (Dv * lapV + uvv - (localF + localK) * v);
+
+        // Natural soft bounds
+        next_U[i] = Math.max(0.0, Math.min(1.0, nU));
+        next_V[i] = Math.max(0.0, Math.min(1.0, nV));
       }
     }
 
@@ -128,7 +176,22 @@
     Turing_V.set(next_V);
   }
 
-  // --- Curl Noise Incompressible Current ---
+  // --- Dynamic Biological Injections into Substrate Morphogens ---
+  function injectMorphogen(x, y, radiusCells, amountV, amountU) {
+    const gx = Math.floor(x / SUB_SCALE);
+    const gy = Math.floor(y / SUB_SCALE);
+    for (let dx = -radiusCells; dx <= radiusCells; dx++) {
+      for (let dy = -radiusCells; dy <= radiusCells; dy++) {
+        if (dx * dx + dy * dy <= radiusCells * radiusCells) {
+          const i = subIdx(gx + dx, gy + dy);
+          if (amountV !== undefined) Turing_V[i] = Math.min(1.0, Math.max(0.0, Turing_V[i] + amountV));
+          if (amountU !== undefined) Turing_U[i] = Math.min(1.0, Math.max(0.0, Turing_U[i] + amountU));
+        }
+      }
+    }
+  }
+
+  // --- Curl Noise Field for Incompressible Marine Current ---
   function getCurlVelocity(x, y, t) {
     const scale = 0.0035;
     const eps = 1.0;
@@ -210,6 +273,7 @@
       this.phi = Math.max(0.0, this.phi - 0.035);
       if (this.defCalc > 0) this.defCalc--;
 
+      // Kuramoto phase locking
       let phaseCouplingSum = 0;
       let connectedCount = 0;
 
@@ -242,11 +306,13 @@
         }
       }
 
+      // Sample substrate & live Turing morphogen field V
       const gx = Math.floor(this.x / SUB_SCALE);
       const gy = Math.floor(this.y / SUB_SCALE);
       const sIndex = subIdx(gx, gy);
 
-      const turingBoost = 1.0 + Turing_V[sIndex] * 0.5;
+      // Living substrate synergy: plants flourish on active Turing ridges
+      const turingBoost = 1.0 + Turing_V[sIndex] * 0.6;
       const u = Math.min(S_field[sIndex], this.genome.nu * turingBoost);
       S_field[sIndex] -= u;
 
@@ -263,6 +329,12 @@
         this.energy += (this.genome.gamma * climate.alpha_sun * turingBoost + u) - this.genome.mu_p;
       }
 
+      // Active plants gently deposit morphogen ripples into the substrate
+      if (this.phi > 0.3) {
+        injectMorphogen(this.x, this.y, 2, 0.15, -0.10);
+      }
+
+      // Directional branching
       if (this.energy >= this.genome.theta_rep && this.children.length < this.genome.maxBranches && allPlants.length < MAX_PLANTS && Math.random() < 0.22) {
         let baseAngle = -Math.PI / 2;
         if (this.parent) {
@@ -278,12 +350,13 @@
           this.energy -= this.genome.c_rep;
           const child = new DendriticAutotroph(childX, childY, this, this.generation + 1);
           plants.push(child);
+          injectMorphogen(childX, childY, 2, 0.35, -0.25); // New branch seeds a Turing morphogen bloom
         }
       }
     }
   }
 
-  // --- Loosened Fluid Boids Grazers (No Ring Trapping) ---
+  // --- Loosened Fluid Boids Grazers ---
   const grazers = [];
   const apexPredators = [];
   const benthicCrabs = [];
@@ -312,15 +385,12 @@
       this.energy -= 0.10;
       this.pulse += 0.08;
 
-      // 1. Fluid Curl Current Drift
       const curl = getCurlVelocity(this.x, this.y, now);
 
-      // 2. Continuous Organic Wander Noise (breaks crystalline grid/ring equilibrium)
       this.wanderAngle += (Math.random() - 0.5) * 0.4;
       const wanderVx = Math.cos(this.wanderAngle) * 0.6;
       const wanderVy = Math.sin(this.wanderAngle) * 0.6;
 
-      // 3. Loosened Reynolds Flocking Forces
       let sepX = 0, sepY = 0;
       let alignX = 0, alignY = 0;
       let cohX = 0, cohY = 0;
@@ -332,7 +402,6 @@
         const dist = Math.hypot(other.x - this.x, other.y - this.y);
 
         if (dist > 0 && dist < this.genome.r_flock) {
-          // Soft inverse distance separation (prevents hard geometric rings)
           if (dist < 26) {
             const force = (26 - dist) / 26;
             sepX += ((this.x - other.x) / dist) * force;
@@ -353,12 +422,11 @@
         cohX = (cohX / flockNeighbors) - this.x;
         cohY = (cohY / flockNeighbors) - this.y;
 
-        // Tuned balanced weights for fluid schooling rather than tight locking
         flockVx = sepX * 0.28 + alignX * 0.22 + cohX * 0.015;
         flockVy = sepY * 0.28 + alignY * 0.22 + cohY * 0.015;
       }
 
-      // 4. Apex Predator Evasion (Immediate panic reflex)
+      // Apex Evasion
       let evadeX = 0, evadeY = 0;
       let inDanger = false;
       for (let i = 0; i < allApex.length; i++) {
@@ -371,7 +439,7 @@
         }
       }
 
-      // 5. Active Foraging Steering
+      // Foraging Steering
       let forageVx = 0, forageVy = 0;
       let closestPlant = null;
       let closestDist = Infinity;
@@ -398,10 +466,12 @@
           closestPlant.phi = 1.0;
           globalKuramotoCoupling = 0.22;
           propagateWave(closestPlant);
+
+          // Grazing event triggers local reaction-diffusion disturbance
+          injectMorphogen(closestPlant.x, closestPlant.y, 2, 0.25, -0.15);
         }
       }
 
-      // Combine Steering Vectors (evasion priority over flocking)
       let totalDesiredX = curl.u * 0.12 + wanderVx * 0.4 + flockVx * 0.7 + forageVx * 0.9;
       let totalDesiredY = curl.v * 0.12 + wanderVy * 0.4 + flockVy * 0.7 + forageVy * 0.9;
 
@@ -436,17 +506,16 @@
       this.y = y;
       this.vx = (Math.random() - 0.5) * 1.6;
       this.vy = (Math.random() - 0.5) * 1.6;
-      this.energy = 110.0;     // Higher initial metabolic reserves
-      this.cruiseSpeed = 1.55; // Efficient cruising
-      this.sprintSpeed = 2.45; // Burst attack speed to close gaps
-      this.r_hunt = 170;       // Extended perceptual hunting radius
+      this.energy = 110.0;
+      this.cruiseSpeed = 1.55;
+      this.sprintSpeed = 2.45;
+      this.r_hunt = 170;
       this.mass = 85.0;
       this.sprintCooldown = 0;
       this.pulse = Math.random() * Math.PI;
     }
 
     update() {
-      // Lower resting metabolic decay so apex predators persist sustainably
       this.energy -= 0.09;
       this.pulse += 0.05;
       if (this.sprintCooldown > 0) this.sprintCooldown--;
@@ -469,37 +538,36 @@
         const dx = nearest.g.x - this.x;
         const dy = nearest.g.y - this.y;
 
-        // Burst-Sprint Attack: accelerates when within striking distance (under 70px)
         const isSprinting = nearest.dist < 70 && this.sprintCooldown === 0;
         const currentMaxSpeed = isSprinting ? this.sprintSpeed : this.cruiseSpeed;
 
         desiredVx = (dx / nearest.dist) * currentMaxSpeed;
         desiredVy = (dy / nearest.dist) * currentMaxSpeed;
 
-        // Successful Hunt / Bite
         if (nearest.dist < 15) {
           const gx = Math.floor(this.x / SUB_SCALE);
           const gy = Math.floor(this.y / SUB_SCALE);
           const sIndex = subIdx(gx, gy);
 
           if (nearest.g.genome.isArmored && Math.random() < 0.50) {
-            // Armored deflection
             A_field[sIndex] = Math.min(8.0, A_field[sIndex] + 2.0);
             this.energy -= 2.0;
             this.vx *= -0.7;
             this.vy *= -0.7;
             this.sprintCooldown = 40;
           } else {
-            // Predation succeeds: high energy reward ensures sustainable apex lineage
             this.energy = Math.min(160.0, this.energy + 48.0);
             A_field[sIndex] = Math.min(8.0, A_field[sIndex] + 4.5);
             spawnDecayPuff(nearest.g.x, nearest.g.y, 'grazer');
+
+            // Predation kill shockwave creates sudden morphogen turbulence
+            injectMorphogen(nearest.g.x, nearest.g.y, 3, 0.45, -0.35);
+
             grazers.splice(nearest.idx, 1);
-            this.sprintCooldown = 25; // Brief rest after successful meal
+            this.sprintCooldown = 25;
           }
         }
       } else {
-        // Slow exploratory ocean roaming
         desiredVx += (Math.random() - 0.5) * 0.35;
         desiredVy += (Math.random() - 0.5) * 0.35;
       }
@@ -509,7 +577,6 @@
       this.x = (this.x + this.vx + width) % width;
       this.y = (this.y + this.vy + height) % height;
 
-      // Self-sustaining apex reproduction
       if (this.energy > 145.0 && apexPredators.length < 6) {
         this.energy -= 65.0;
         apexPredators.push(new OrganicApex(this.x, this.y));
@@ -537,6 +604,8 @@
         D_field[sIndex] -= dScav;
         S_field[sIndex] = Math.min(10.0, S_field[sIndex] + 1.6 * dScav);
         this.energy = Math.min(95.0, this.energy + 1.2 * dScav);
+        // Crabs tilling seabed loam injects subtle organic Turing trails
+        injectMorphogen(this.x, this.y, 1, 0.08, 0.0);
       }
 
       this.vx += (Math.random() - 0.5) * 0.15;
@@ -661,7 +730,7 @@
     const total = SUB_COLS * SUB_ROWS;
     const nextA = new Float32Array(total);
 
-    stepTuringMorphogenesis(climate);
+    stepTuringMorphogenesis();
 
     for (let x = 0; x < SUB_COLS; x++) {
       for (let y = 0; y < SUB_ROWS; y++) {
@@ -712,7 +781,8 @@
     const mEntropy = document.getElementById('metricEntropy');
     const mEnv = document.getElementById('metricEnv');
 
-    if (hudRegime) hudRegime.textContent = climate.name;
+    const curReg = TURING_REGIMES[currentRegimeIdx];
+    if (hudRegime) hudRegime.textContent = `${climate.name} • ${curReg.name}`;
     if (hudBiomass) hudBiomass.textContent = Math.round(totalBiomass);
     if (hudEntities) hudEntities.textContent = plants.length + grazers.length + benthicCrabs.length + apexPredators.length;
 
@@ -722,7 +792,7 @@
     if (mCrabs) mCrabs.textContent = benthicCrabs.length;
     if (mNutrient) mNutrient.textContent = nutrientIdx;
     if (mEntropy) mEntropy.textContent = meanVoltage;
-    if (mEnv) mEnv.textContent = `Water Temp: ${climate.temp.toFixed(1)}°C | Solar: ${climate.lux}% | pH: ${climate.ph.toFixed(2)}`;
+    if (mEnv) mEnv.textContent = `Water Temp: ${climate.temp.toFixed(1)}°C | F: ${currentF.toFixed(3)} k: ${currentK.toFixed(3)} | pH: ${climate.ph.toFixed(2)}`;
   }
 
   let isPaused = false;
@@ -756,6 +826,7 @@
           const sIndex = subIdx(gx, gy);
           D_field[sIndex] = Math.min(8.0, D_field[sIndex] + 1.2);
           spawnDecayPuff(p.x, p.y, 'flora');
+          injectMorphogen(p.x, p.y, 2, -0.2, 0.2); // Senescence dissolves local Turing pattern
 
           if (p.parent) {
             const idx = p.parent.children.indexOf(p);
@@ -821,7 +892,7 @@
 
     // --- DRAWING STAGE ---
 
-    // 1. Gray-Scott Turing Morphogenesis Substrate
+    // 1. Live Dynamic Breathing Gray-Scott Turing Morphogenesis Substrate
     if (showSubstrate) {
       const imgData = subCtx.createImageData(SUB_COLS, SUB_ROWS);
       const data = imgData.data;
@@ -834,11 +905,19 @@
           const dVal = D_field[i] / 8.0;
           const aVal = A_field[i] / 6.0;
           const turingV = Turing_V[i];
+          const turingU = Turing_U[i];
 
-          data[pIdx] = Math.min(255, Math.floor(aVal * 220 + turingV * 40 + 8));
-          data[pIdx + 1] = Math.min(255, Math.floor(sVal * 150 + turingV * 95 + 25));
-          data[pIdx + 2] = Math.min(255, Math.floor(dVal * 110 + turingV * 70 + 18));
-          data[pIdx + 3] = Math.min(255, Math.floor((0.15 + sVal * 0.20 + dVal * 0.12 + aVal * 0.35 + turingV * 0.22) * 255));
+          // Vivid biological chromatic map:
+          // Ridge V creates glowing cyan/emerald bio-mineral veins; U provides deep oceanic abyss
+          const r = Math.min(255, Math.floor(aVal * 220 + turingV * 35 + 6));
+          const g = Math.min(255, Math.floor(sVal * 130 + turingV * 115 + (1.0 - turingU) * 40 + 20));
+          const b = Math.min(255, Math.floor(dVal * 110 + turingV * 90 + turingU * 25 + 18));
+          const alpha = Math.min(255, Math.floor((0.18 + sVal * 0.18 + dVal * 0.12 + aVal * 0.35 + turingV * 0.30) * 255));
+
+          data[pIdx] = r;
+          data[pIdx + 1] = g;
+          data[pIdx + 2] = b;
+          data[pIdx + 3] = alpha;
         }
       }
 
@@ -1049,6 +1128,8 @@
       for (let i = 0; i < plants.length; i++) {
         if (Math.random() < 0.2) plants[i].energy -= 8.0;
       }
+      // Heat pulse triggers global morphogenesis phase transition
+      targetRegimeIdx = (targetRegimeIdx + 2) % TURING_REGIMES.length;
     });
   }
 
