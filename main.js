@@ -1,6 +1,6 @@
-// Synapse Reef v3.0 - High-Octane Trophic Pursuit & Energy-Gated Burst Sprint Engine
-// Apex Predators: Base cruise speed > prey, explosive burst sprints consuming stored metabolic reserves,
-// Dynamic trail distortion, seasonal thermodynamic cycles, and Turing reaction-diffusion substrates.
+// Synapse Reef v3.1 - Tropical Lagoon & Natural Reef Palette Engine
+// Top-down tropical lagoon view: warm white-to-golden sand substrate, dynamic turquoise water caustics,
+// vibrant coral species (staghorn emerald, violet gorgonian, sun coral), electric blue grazers, and tiger-amber predators.
 
 (function () {
   'use strict';
@@ -61,51 +61,55 @@
   const SEASONS = [
     {
       name: 'Verdant Solstice',
-      desc: 'Summer Solar Max & High Primary Production',
+      desc: 'Summer Solar Max & High Lagoon Transparency',
       alpha_sun: 1.15,
       beta_climate: 0.005,
-      waterTemp: 26.5,
+      waterTemp: 27.2,
       solarLux: 100,
-      ph: 8.18,
+      ph: 8.22,
       turingF: 0.038,
       turingK: 0.061,
-      ambientHue: { r: 6, g: 30, b: 22 }
+      sandHue: { r: 232, g: 218, b: 178 }, // Warm golden lagoon sand
+      waterTint: { r: 0, g: 180, b: 200 }   // Turquoise shimmer
     },
     {
       name: 'Nutrient Monsoon',
-      desc: 'Autumn Upwelling & Abyssal Detritus Mineralization',
+      desc: 'Autumn Tidal Surge & Mineral Enrichment',
       alpha_sun: 0.85,
       beta_climate: 0.020,
-      waterTemp: 23.0,
+      waterTemp: 24.0,
       solarLux: 70,
-      ph: 8.05,
+      ph: 8.08,
       turingF: 0.046,
       turingK: 0.063,
-      ambientHue: { r: 12, g: 36, b: 32 }
+      sandHue: { r: 210, g: 195, b: 160 }, // Wet silt sand
+      waterTint: { r: 0, g: 150, b: 185 }
     },
     {
       name: 'Arid Eclipse',
-      desc: 'Winter Thermal Stress & Pheromone Sensitivity',
+      desc: 'Twilight Low Tide & Deep Trench Shadowing',
       alpha_sun: 0.60,
       beta_climate: 0.002,
       waterTemp: 28.5,
       solarLux: 40,
-      ph: 8.28,
+      ph: 8.30,
       turingF: 0.028,
       turingK: 0.058,
-      ambientHue: { r: 24, g: 18, b: 14 }
+      sandHue: { r: 185, g: 165, b: 135 }, // Dusky shadows
+      waterTint: { r: 10, g: 110, b: 160 }
     },
     {
       name: 'Bioluminescent Bloom',
-      desc: 'Spring Synchronous Spawning & Wave Amplification',
+      desc: 'Spring Coral Spawning & Vivid Reef iridescence',
       alpha_sun: 1.30,
       beta_climate: 0.010,
-      waterTemp: 25.2,
+      waterTemp: 25.8,
       solarLux: 125,
-      ph: 8.20,
+      ph: 8.24,
       turingF: 0.054,
       turingK: 0.062,
-      ambientHue: { r: 8, g: 38, b: 38 }
+      sandHue: { r: 245, g: 235, b: 205 }, // Bright white coral sand
+      waterTint: { r: 20, g: 210, b: 220 }
     }
   ];
 
@@ -115,12 +119,13 @@
     desc: '',
     alpha_sun: 1.05,
     beta_climate: 0.005,
-    waterTemp: 25.5,
+    waterTemp: 26.5,
     solarLux: 100,
-    ph: 8.15,
+    ph: 8.18,
     turingF: 0.038,
     turingK: 0.061,
-    ambientHue: { r: 6, g: 30, b: 22 }
+    sandHue: { r: 235, g: 222, b: 185 },
+    waterTint: { r: 0, g: 180, b: 200 }
   };
 
   function updateSeasonalCycle() {
@@ -144,10 +149,16 @@
     currentClimate.turingF = sA.turingF * (1 - smoothT) + sB.turingF * smoothT;
     currentClimate.turingK = sA.turingK * (1 - smoothT) + sB.turingK * smoothT;
 
-    currentClimate.ambientHue = {
-      r: Math.round(sA.ambientHue.r * (1 - smoothT) + sB.ambientHue.r * smoothT),
-      g: Math.round(sA.ambientHue.g * (1 - smoothT) + sB.ambientHue.g * smoothT),
-      b: Math.round(sA.ambientHue.b * (1 - smoothT) + sB.ambientHue.b * smoothT)
+    currentClimate.sandHue = {
+      r: Math.round(sA.sandHue.r * (1 - smoothT) + sB.sandHue.r * smoothT),
+      g: Math.round(sA.sandHue.g * (1 - smoothT) + sB.sandHue.g * smoothT),
+      b: Math.round(sA.sandHue.b * (1 - smoothT) + sB.sandHue.b * smoothT)
+    };
+
+    currentClimate.waterTint = {
+      r: Math.round(sA.waterTint.r * (1 - smoothT) + sB.waterTint.r * smoothT),
+      g: Math.round(sA.waterTint.g * (1 - smoothT) + sB.waterTint.g * smoothT),
+      b: Math.round(sA.waterTint.b * (1 - smoothT) + sB.waterTint.b * smoothT)
     };
   }
 
@@ -174,7 +185,7 @@
     next_V = new Float32Array(total);
 
     for (let y = 0; y < SUB_ROWS; y++) {
-      const depthBias = 1.0 + (y / SUB_ROWS) * 2.2;
+      const depthBias = 1.0 + (y / SUB_ROWS) * 1.5;
       for (let x = 0; x < SUB_COLS; x++) {
         const i = x + y * SUB_COLS;
         S_field[i] = (2.5 + Math.random() * 2.5) * depthBias;
@@ -183,7 +194,7 @@
 
         Turing_U[i] = 1.0;
         Turing_V[i] = 0.0;
-        if (Math.hypot(x - SUB_COLS * 0.5, y - SUB_ROWS * 0.6) < 6 || Math.random() < 0.05) {
+        if (Math.hypot(x - SUB_COLS * 0.5, y - SUB_ROWS * 0.6) < 6 || Math.random() < 0.06) {
           Turing_V[i] = 0.7 + Math.random() * 0.3;
         }
       }
@@ -239,7 +250,7 @@
     }
   }
 
-  // --- Incompressible Curl Current ---
+  // --- Incompressible Current Field ---
   function getCurlVelocity(x, y, t) {
     const scale = 0.0035;
     const eps = 1.0;
@@ -254,12 +265,12 @@
     const dPsi_dx = (psi_x1 - psi_x0) / (2 * eps);
 
     return {
-      u: dPsi_dy * 50.0,
-      v: -dPsi_dx * 50.0 + 0.12
+      u: dPsi_dy * 45.0,
+      v: -dPsi_dx * 45.0 + 0.08
     };
   }
 
-  // --- Marine Snow Particles ---
+  // --- Marine Snow Particles (Sunlit Floating Specks) ---
   const marineSnow = [];
   const SNOW_COUNT = 55;
 
@@ -270,13 +281,21 @@
         x: Math.random() * width,
         y: Math.random() * height,
         r: 0.8 + Math.random() * 1.5,
-        alpha: 0.2 + Math.random() * 0.35,
+        alpha: 0.35 + Math.random() * 0.40,
         depth: 0.5 + Math.random() * 0.5
       });
     }
   }
 
-  // --- Autotrophs (Kuramoto Coupled Oscillators) ---
+  // --- Coral Species & Colors (Staghorn Emerald, Violet Gorgonian, Sun Coral Gold) ---
+  const CORAL_PALETTES = [
+    { stem: 'rgba(39, 174, 96, ', polyp: '#2ecc71', flash: '#a3e4d7', glow: 'rgba(46, 204, 113, ' },   // Emerald Staghorn
+    { stem: 'rgba(142, 68, 173, ', polyp: '#9b59b6', flash: '#e8daef', glow: 'rgba(155, 89, 182, ' },  // Violet Gorgonian
+    { stem: 'rgba(211, 84, 0, ', polyp: '#e67e22', flash: '#f9e79f', glow: 'rgba(230, 126, 34, ' },     // Sun Coral Amber
+    { stem: 'rgba(22, 160, 133, ', polyp: '#1abc9c', flash: '#d1f2eb', glow: 'rgba(26, 188, 156, ' }     // Turquoise Brain Coral
+  ];
+
+  // --- Autotrophs (Kuramoto Coupled Dendritic Coral Heads) ---
   const plants = [];
   const sparks = [];
   const decayPuffs = [];
@@ -284,12 +303,13 @@
   let globalKuramotoCoupling = 0.04;
 
   class DendriticAutotroph {
-    constructor(x, y, parent, generation, genome) {
+    constructor(x, y, parent, generation, speciesIdx, genome) {
       this.x = x;
       this.y = y;
       this.parent = parent || null;
       this.children = [];
       this.synapseWeights = new Map();
+      this.speciesIdx = speciesIdx !== undefined ? speciesIdx : (parent ? parent.speciesIdx : Math.floor(Math.random() * CORAL_PALETTES.length));
 
       this.energy = 16.0;
       this.age = 0;
@@ -321,6 +341,7 @@
       this.phi = Math.max(0.0, this.phi - 0.035);
       if (this.defCalc > 0) this.defCalc--;
 
+      // Kuramoto phase locking
       let phaseCouplingSum = 0;
       let connectedCount = 0;
 
@@ -391,7 +412,7 @@
 
         if (Math.hypot(childX - this.x, childY - this.y) < 40) {
           this.energy -= this.genome.c_rep;
-          const child = new DendriticAutotroph(childX, childY, this, this.generation + 1);
+          const child = new DendriticAutotroph(childX, childY, this, this.generation + 1, this.speciesIdx);
           plants.push(child);
           injectMorphogen(childX, childY, 2, 0.35, -0.25);
         }
@@ -399,7 +420,7 @@
     }
   }
 
-  // --- Grazers (Herbivores: Calibrated Cruising Speed = 1.30) ---
+  // --- Grazers (Electric Cyan/Sapphire Reef Fish with Bright Yellow Fin Accents) ---
   const grazers = [];
   const apexPredators = [];
   const benthicCrabs = [];
@@ -539,7 +560,7 @@
     }
   }
 
-  // --- Dynamic Apex Predators: Faster Base Cruise + Energy-Gated Burst Sprint ---
+  // --- Apex Predators (Tiger Amber & Deep Crimson Hunter Sharks) ---
   class OrganicApex {
     constructor(x, y) {
       this.x = x;
@@ -636,6 +657,7 @@
     }
   }
 
+  // --- Benthic Crabs (Coral Hermit Orange / Terracotta) ---
   class OrganicBenthicCrab {
     constructor(x, y) {
       this.x = x;
@@ -683,7 +705,7 @@
   }
 
   function spawnDecayPuff(x, y, type) {
-    const color = type === 'apex' ? '231, 76, 60' : type === 'crab' ? '230, 126, 34' : '46, 204, 113';
+    const color = type === 'apex' ? '230, 75, 40' : type === 'crab' ? '230, 126, 34' : '46, 204, 113';
     for (let i = 0; i < 5; i++) {
       decayPuffs.push({
         x: x + (Math.random() - 0.5) * 6,
@@ -760,7 +782,8 @@
     for (let k = 0; k < rootCount; k++) {
       const rootX = 35 + (k / (rootCount - 1)) * (width - 70) + (Math.random() - 0.5) * 25;
       const rootY = height * 0.65 + Math.random() * (height * 0.25);
-      const root = new DendriticAutotroph(rootX, rootY, null, 1);
+      const speciesIdx = k % CORAL_PALETTES.length;
+      const root = new DendriticAutotroph(rootX, rootY, null, 1, speciesIdx);
       plants.push(root);
 
       for (let b = 0; b < 2; b++) {
@@ -768,7 +791,7 @@
         const bDist = 16 + Math.random() * 8;
         const bX = Math.max(12, Math.min(width - 12, rootX + Math.cos(bAngle) * bDist));
         const bY = Math.max(12, Math.min(height - 12, rootY + Math.sin(bAngle) * bDist));
-        plants.push(new DendriticAutotroph(bX, bY, root, 2));
+        plants.push(new DendriticAutotroph(bX, bY, root, 2, speciesIdx));
       }
     }
 
@@ -842,7 +865,7 @@
     if (mCrabs) mCrabs.textContent = benthicCrabs.length;
     if (mNutrient) mNutrient.textContent = nutrientIdx;
     if (mEntropy) mEntropy.textContent = meanVoltage;
-    if (mEnv) mEnv.textContent = `Water: ${climate.waterTemp.toFixed(1)}°C | Lux: ${climate.solarLux}% | pH: ${climate.ph.toFixed(2)}`;
+    if (mEnv) mEnv.textContent = `Lagoon: ${climate.waterTemp.toFixed(1)}°C | Lux: ${climate.solarLux}% | pH: ${climate.ph.toFixed(2)}`;
   }
 
   let isPaused = false;
@@ -898,7 +921,6 @@
         }
       }
 
-      // Step Apex Predators
       for (let i = apexPredators.length - 1; i >= 0; i--) {
         apexPredators[i].update();
         if (apexPredators[i].energy <= 0) {
@@ -907,7 +929,7 @@
         }
       }
 
-      // Marine Snow with Curl Flow + Soft Gravitational Pull
+      // Marine Snow with Curl Flow
       for (let i = 0; i < marineSnow.length; i++) {
         const s = marineSnow[i];
         const vel = getCurlVelocity(s.x, s.y, now);
@@ -938,11 +960,11 @@
 
     // --- DRAWING STAGE ---
 
-    // 1. Seasonal Ocean Gradient & Breathing Gray-Scott Turing Morphogenesis Substrate
+    // 1. Natural Sand Substrate with Reaction-Diffusion Shadow Veins & Mineral Loam
     if (showSubstrate) {
       const imgData = subCtx.createImageData(SUB_COLS, SUB_ROWS);
       const data = imgData.data;
-      const hue = currentClimate.ambientHue;
+      const sand = currentClimate.sandHue;
 
       for (let y = 0; y < SUB_ROWS; y++) {
         for (let x = 0; x < SUB_COLS; x++) {
@@ -954,10 +976,14 @@
           const turingV = Turing_V[i];
           const turingU = Turing_U[i];
 
-          const r = Math.min(255, Math.floor(hue.r + aVal * 200 + turingV * 40));
-          const g = Math.min(255, Math.floor(hue.g + sVal * 120 + turingV * 110 + (1.0 - turingU) * 35));
-          const b = Math.min(255, Math.floor(hue.b + dVal * 100 + turingV * 85 + turingU * 20));
-          const alpha = Math.min(255, Math.floor((0.20 + sVal * 0.18 + dVal * 0.12 + aVal * 0.35 + turingV * 0.28) * 255));
+          // Sand base (white to golden beige) with darker reef trench shadowing
+          const shadow = (1.0 - turingU) * 45 + dVal * 35;
+          const mineralGlow = sVal * 25 + turingV * 30;
+
+          const r = Math.max(12, Math.min(255, Math.floor(sand.r * 0.28 + aVal * 180 + mineralGlow * 1.2 - shadow * 0.6)));
+          const g = Math.max(22, Math.min(255, Math.floor(sand.g * 0.32 + sVal * 40 + turingV * 55 - shadow * 0.4)));
+          const b = Math.max(20, Math.min(255, Math.floor(sand.b * 0.30 + turingV * 45 + (1.0 - turingU) * 20)));
+          const alpha = Math.min(255, Math.floor((0.75 + sVal * 0.15 + turingV * 0.10) * 255));
 
           data[pIdx] = r;
           data[pIdx + 1] = g;
@@ -971,18 +997,37 @@
       ctx.save();
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      ctx.globalAlpha = 0.95;
       ctx.drawImage(subCanvas, 0, 0, width, height);
       ctx.restore();
     }
 
-    // 2. Gravitational Apex Lensing Halo Wakes (Intensified during burst sprint)
+    // 2. Turquoise Water Movement & Surface Caustic Shimmers
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    const tWater = now * 0.0008;
+    const causticGrad = ctx.createRadialGradient(
+      width * 0.5 + Math.sin(tWater) * 60,
+      height * 0.4 + Math.cos(tWater * 0.7) * 40,
+      10,
+      width * 0.5,
+      height * 0.5,
+      Math.max(width, height) * 0.7
+    );
+    const tint = currentClimate.waterTint;
+    causticGrad.addColorStop(0, `rgba(${tint.r}, ${tint.g}, ${tint.b}, 0.18)`);
+    causticGrad.addColorStop(0.5, `rgba(${tint.r * 0.6}, ${tint.g * 0.8}, ${tint.b}, 0.09)`);
+    causticGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = causticGrad;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+
+    // 3. Gravitational Apex Lensing Halo Wakes (Amber-Crimson Shadow)
     for (let a = 0; a < apexPredators.length; a++) {
       const apex = apexPredators[a];
       const haloRadius = apex.isSprinting ? 60 : 45;
       const grad = ctx.createRadialGradient(apex.x, apex.y, 4, apex.x, apex.y, haloRadius);
-      grad.addColorStop(0, apex.isSprinting ? 'rgba(255, 75, 43, 0.40)' : 'rgba(231, 76, 60, 0.22)');
-      grad.addColorStop(0.5, apex.isSprinting ? 'rgba(230, 126, 34, 0.20)' : 'rgba(155, 89, 182, 0.10)');
+      grad.addColorStop(0, apex.isSprinting ? 'rgba(255, 107, 53, 0.35)' : 'rgba(211, 84, 0, 0.20)');
+      grad.addColorStop(0.5, apex.isSprinting ? 'rgba(192, 57, 43, 0.18)' : 'rgba(120, 40, 20, 0.08)');
       grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
       ctx.save();
@@ -993,18 +1038,18 @@
       ctx.restore();
     }
 
-    // 3. Marine Snow Eddies
+    // 4. Sunlit Marine Snow Specks
     ctx.save();
     for (let i = 0; i < marineSnow.length; i++) {
       const s = marineSnow[i];
-      ctx.fillStyle = `rgba(180, 235, 210, ${s.alpha})`;
+      ctx.fillStyle = `rgba(225, 248, 245, ${s.alpha})`;
       ctx.beginPath();
       ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
 
-    // 4. Dendritic Tendrils with Kuramoto Harmonic Glow
+    // 5. Species-Colored Dendritic Coral Tendrils
     for (let i = 0; i < plants.length; i++) {
       const p = plants[i];
       if (p.parent && plants.includes(p.parent)) {
@@ -1013,10 +1058,11 @@
           const firing = p.phi > 0.05 || p.parent.phi > 0.05;
           const w = p.parent.synapseWeights.get(p) || 1.0;
           const phaseSyncBrightness = (Math.sin(p.theta) + 1.0) * 0.5;
-          const alpha = firing ? Math.min(0.85, 0.35 * w) : Math.min(0.35, (0.10 + phaseSyncBrightness * 0.15) * w);
+          const pal = CORAL_PALETTES[p.speciesIdx] || CORAL_PALETTES[0];
 
-          ctx.strokeStyle = firing ? `rgba(46, 230, 160, ${alpha})` : `rgba(34, 165, 100, ${alpha})`;
-          ctx.lineWidth = firing ? 1.8 : 1.0 + phaseSyncBrightness * 0.4;
+          const alpha = firing ? Math.min(0.90, 0.45 * w) : Math.min(0.40, (0.15 + phaseSyncBrightness * 0.18) * w);
+          ctx.strokeStyle = firing ? '#ffffff' : `${pal.stem}${alpha})`;
+          ctx.lineWidth = firing ? 2.0 : 1.1 + phaseSyncBrightness * 0.4;
 
           const sway = Math.sin(p.theta) * 2.2;
           const midX = (p.parent.x + p.x) * 0.5 + sway;
@@ -1030,22 +1076,23 @@
       }
     }
 
-    // 5. Autotroph Polyps
+    // 6. Autotroph Polyps (Multi-Hue Coral Blooms)
     for (let i = 0; i < plants.length; i++) {
       const p = plants[i];
+      const pal = CORAL_PALETTES[p.speciesIdx] || CORAL_PALETTES[0];
       const breath = (Math.sin(p.theta) + 1.0) * 0.5;
       const r = Math.min(6.5, 2.4 + (p.energy / 15.0) + p.phi * 2.2 + breath * 0.8);
 
       ctx.beginPath();
-      ctx.fillStyle = p.phi > 0.1 ? '#a3e4d7' : `rgba(46, ${Math.floor(180 + breath * 60)}, ${Math.floor(110 + breath * 40)}, 0.95)`;
-      ctx.shadowColor = p.phi > 0.1 ? '#48c9b0' : 'rgba(46, 204, 113, 0.45)';
-      ctx.shadowBlur = p.phi > 0.1 ? 10 : 3 + breath * 4;
+      ctx.fillStyle = p.phi > 0.1 ? pal.flash : pal.polyp;
+      ctx.shadowColor = p.phi > 0.1 ? '#ffffff' : pal.polyp;
+      ctx.shadowBlur = p.phi > 0.1 ? 12 : 3 + breath * 4;
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.shadowBlur = 0;
 
-    // 6. Bioluminescent Traveling Sparks
+    // 7. Bioluminescent Traveling Sparks (Electric Cyan / Gold Pulses)
     for (let i = sparks.length - 1; i >= 0; i--) {
       const sp = sparks[i];
       if (Math.hypot(sp.x1 - sp.x2, sp.y1 - sp.y2) > 45) {
@@ -1061,44 +1108,53 @@
         const sy = (1 - sp.sigma) * sp.y1 + sp.sigma * sp.y2;
         ctx.beginPath();
         ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = '#58d68d';
-        ctx.shadowBlur = 7;
+        ctx.shadowColor = '#00f2fe';
+        ctx.shadowBlur = 8;
         ctx.arc(sx, sy, 2.0, 0, Math.PI * 2);
         ctx.fill();
       }
     }
     ctx.shadowBlur = 0;
 
-    // 7. Benthic Crabs
+    // 8. Benthic Crabs (Warm Hermit Terracotta)
     for (let i = 0; i < benthicCrabs.length; i++) {
       const b = benthicCrabs[i];
       ctx.beginPath();
       ctx.fillStyle = '#e67e22';
+      ctx.shadowColor = 'rgba(230, 126, 34, 0.4)';
+      ctx.shadowBlur = 4;
       ctx.arc(b.x, b.y, 3.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 8. Flocking Grazers (Oriented Shoal Fish Heading)
+    // 9. Grazers (Electric Cyan / Sapphire Reef Fish with Golden Fins)
     for (let i = 0; i < grazers.length; i++) {
       const g = grazers[i];
       const heading = Math.atan2(g.vy, g.vx);
-      const glow = Math.sin(g.pulse) * 1.2;
 
       ctx.save();
       ctx.translate(g.x, g.y);
       ctx.rotate(heading);
 
+      // Streamlined body
       ctx.beginPath();
-      ctx.fillStyle = g.genome.isArmored ? '#f39c12' : '#2ecc71';
-      ctx.shadowColor = g.genome.isArmored ? '#f39c12' : '#2ecc71';
+      ctx.fillStyle = g.genome.isArmored ? '#f39c12' : '#00d2d3';
+      ctx.shadowColor = g.genome.isArmored ? '#f39c12' : '#00f2fe';
       ctx.shadowBlur = 5;
-      ctx.ellipse(0, 0, 4.0 + glow * 0.3, 2.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, 4.2, 2.1, 0, 0, Math.PI * 2);
       ctx.fill();
+
+      // Golden tail fin
+      ctx.beginPath();
+      ctx.fillStyle = '#feca57';
+      ctx.arc(-3.5, 0, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+
       ctx.restore();
     }
     ctx.shadowBlur = 0;
 
-    // 9. Apex Predators (Dynamic Flare During Burst Sprint)
+    // 10. Apex Predators (Tiger Amber / Ruby Hunter Leviathans)
     for (let i = 0; i < apexPredators.length; i++) {
       const a = apexPredators[i];
       const heading = Math.atan2(a.vy, a.vx);
@@ -1108,17 +1164,24 @@
       ctx.rotate(heading);
 
       ctx.beginPath();
-      ctx.fillStyle = a.isSprinting ? '#ff3838' : '#e74c3c';
-      ctx.shadowColor = a.isSprinting ? '#ff7675' : '#e74c3c';
-      ctx.shadowBlur = a.isSprinting ? 18 : 12;
-      const len = a.isSprinting ? 8.2 : 6.5;
-      ctx.ellipse(0, 0, len + Math.sin(a.pulse) * 0.8, 3.8, 0, 0, Math.PI * 2);
+      ctx.fillStyle = a.isSprinting ? '#ee5253' : '#ff9f43';
+      ctx.shadowColor = a.isSprinting ? '#ff6b6b' : '#ee5253';
+      ctx.shadowBlur = a.isSprinting ? 18 : 10;
+      const len = a.isSprinting ? 8.5 : 6.8;
+      ctx.ellipse(0, 0, len + Math.sin(a.pulse) * 0.8, 3.6, 0, 0, Math.PI * 2);
       ctx.fill();
+
+      // Dorsal stripe
+      ctx.beginPath();
+      ctx.fillStyle = '#222f3e';
+      ctx.ellipse(-1.0, 0, 2.8, 1.0, 0, 0, Math.PI * 2);
+      ctx.fill();
+
       ctx.restore();
     }
     ctx.shadowBlur = 0;
 
-    // 10. Soft Atmospheric Decay Puffs
+    // 11. Soft Atmospheric Decay Puffs
     for (let i = decayPuffs.length - 1; i >= 0; i--) {
       const p = decayPuffs[i];
       p.x += p.vx;
