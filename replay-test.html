@@ -20,18 +20,32 @@
   </main>
   <script src="phase-1-foundation.js"></script>
   <script src="replay-harness.js"></script>
+  <script src="world-replay-harness.js"></script>
   <script>
-    const result = SynapseReplay.verify();
+    const foundationResult = SynapseReplay.verify();
+    const worldResult = SynapseWorldReplay.verify();
+    const passed = foundationResult.passed && worldResult.passed;
     const status = document.getElementById('status');
-    status.textContent = result.passed ? 'PASS — deterministic replay foundation is healthy.' : 'FAIL — inspect the report.';
-    status.className = result.passed ? 'pass' : 'fail';
+    status.textContent = passed ? 'PASS — deterministic foundation and ecology replay are healthy.' : 'FAIL — inspect the report.';
+    status.className = passed ? 'pass' : 'fail';
     document.getElementById('report').textContent = JSON.stringify({
-      passed: result.passed,
-      seed: result.seed,
-      steps: result.steps,
-      identical: result.identical,
-      divergent: result.divergent,
-      bounded: result.bounded,
+      passed,
+      foundation: {
+        seed: foundationResult.seed,
+        steps: foundationResult.steps,
+        identical: foundationResult.identical,
+        divergent: foundationResult.divergent,
+        bounded: foundationResult.bounded,
+      },
+      ecology: {
+        seed: worldResult.seed,
+        ticks: worldResult.ticks,
+        sameState: worldResult.sameState,
+        sameEvents: worldResult.sameEvents,
+        diverges: worldResult.diverges,
+        bounded: worldResult.bounded,
+        finite: worldResult.finite,
+      },
     }, null, 2);
   </script>
 </body>
