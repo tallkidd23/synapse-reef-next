@@ -68,9 +68,8 @@
   }
 
   function resize() {
-    const parent = canvas.parentElement || document.body;
-    width = parent.clientWidth || window.innerWidth;
-    height = parent.clientHeight || window.innerHeight;
+    width = window.innerWidth;
+    height = window.innerHeight;
     dpr = window.devicePixelRatio || 1;
 
     canvas.width = Math.floor(width * dpr);
@@ -83,7 +82,7 @@
     ROWS = Math.max(20, Math.floor(height / CHAR_H));
 
     initFields();
-    if (plants.length === 0) initEcosystem();
+    initCosmosParticles();
   }
 
   function initFields() {
@@ -506,8 +505,7 @@
       const sIndex = cellIdx(Math.floor(this.x), Math.floor(this.y));
       if (D_field[sIndex] > 0.2) {
         D_field[sIndex] -= 0.3;
-        S_field[sIndex] = Math.min(10.0, S_field[sIndex] + 0.55);
-        this.energy = Math.min(90.0, this.energy + 0.6);
+        S_field[sIndex] = Math.min(10.0, S_field[sIndex] + 0.55);\n        this.energy = Math.min(90.0, this.energy + 0.6);
       }
       this.vx += (Math.random() - 0.5) * 0.08;
       this.vx = Math.max(-0.35, Math.min(0.35, this.vx));
