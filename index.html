@@ -3,86 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Synapse Reef • Autonomous Neural Coral</title>
+  <title>Synapse Reef • Retro ASCII Terminal</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app-container">
-    
-    <section class="viewport-section" id="viewport">
-      <div class="canvas-hud-header">
-        <div class="hud-title-group">
-          <h1>Synapse Reef</h1>
-        </div>
-        <div class="hud-badges">
-          <span>Regime: <strong id="hudRegime">Verdant Solstice</strong></span>
-          <span>Biomass: <strong id="hudBiomass">8320</strong></span>
-          <span>Entities: <strong id="hudEntities">65</strong></span>
-        </div>
-      </div>
-
-      <canvas id="reefCanvas"></canvas>
-
-      <div class="canvas-controls-bar">
-        <button class="control-btn" id="btnPause">Pause Substrate</button>
-        <button class="control-btn" id="btnStep">Step (100ms)</button>
-        <button class="control-btn" id="btnReseed">Reseed Reef</button>
-        <button class="control-btn" id="btnHeatPulse">Trigger Heat Pulse</button>
-        <label class="control-toggle">
-          <input type="checkbox" id="chkAudio" checked> Audio
-        </label>
-        <label class="control-toggle">
-          <input type="checkbox" id="chkSubstrate"> Substrate Fields
-        </label>
-      </div>
-    </section>
-
-    <div class="telemetry-drawer" id="telemetryDrawer">
-      <div class="drawer-header" id="drawerToggle">
-        <div class="drawer-pill"></div>
-        <div class="drawer-title-row">
-          <span>Live Substrate Telemetry</span>
-          <span id="drawerIndicator">▲ Expand</span>
-        </div>
-      </div>
-
-      <div class="drawer-content">
-        <div class="metric-card">
-          <div class="metric-label">Flora Mass</div>
-          <div class="metric-val" id="metricFlora">7900</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Grazer Count</div>
-          <div class="metric-val" id="metricGrazer">42</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Apex Biomass</div>
-          <div class="metric-val" id="metricApex">5</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Benthic Crabs</div>
-          <div class="metric-val" id="metricCrabs">18</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Nutrient Index</div>
-          <div class="metric-val" id="metricNutrient">1.13</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Signal Entropy</div>
-          <div class="metric-val" id="metricEntropy">0.28</div>
-        </div>
-        <div class="metric-card metric-full">
-          <div class="metric-label">Environmental Regimes</div>
-          <div class="metric-val" style="font-size:0.85rem;" id="metricEnv">
-            Water Temp: 25.5°C | Solar Lux: 100% | pH: 8.15
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <script src="audio-safety.js"></script>
+  <canvas id="reefCanvas"></canvas>
   <script src="main.js"></script>
 </body>
 </html>
