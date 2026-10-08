@@ -392,7 +392,9 @@ const COSMIC_REGIMES = [
         flockVy = sepY * 0.25 + alignY * 0.2 + cohY * 0.02;
       }
 
-      let evadeX = 0, evadeY = 0, inDanger = false;
+            let evadeX = 0, evadeY = 0, inDanger = false;
+
+      // 1. Direct Apex Hunter Proximity Evasion
       for (let i = 0; i < allApex.length; i++) {
         const predator = allApex[i];
         const pDist = Math.hypot(predator.x - this.x, predator.y - this.y);
@@ -403,6 +405,31 @@ const COSMIC_REGIMES = [
           inDanger = true;
         }
       }
+
+      // 2. Negative Gradient of Stress Alarm Radiation Wake (Moore N8)
+      const gx = Math.floor(this.x);
+      const gy = Math.floor(this.y);
+      let alarmFleeX = 0, alarmFleeY = 0;
+
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          if (dx === 0 && dy === 0) continue;
+          const aVal = A_field[cellIdx(gx + dx, gy + dy)];
+          if (aVal > 0.15) {
+            alarmFleeX -= dx * aVal * 0.8;
+            alarmFleeY -= dy * aVal * 0.8;
+            inDanger = true;
+          }
+        }
+      }
+      evadeX += alarmFleeX;
+      evadeY += alarmFleeY;
+
+      // 3. Canopy Ceiling Deflection (Prevents upper-perimeter jamming)
+      if (this.y < HEADER_ROWS + 3) {
+        evadeY += 0.8;
+      }
+
 
       let forageVx = 0, forageVy = 0, closestPlant = null, closestDist = Infinity;
       for (let i = 0; i < allPlants.length; i++) {
@@ -507,13 +534,19 @@ const COSMIC_REGIMES = [
           desiredVy = (dy / safeDist) * this.cruiseSpeed;
         }
 
-        if (nearest.dist < 1.3) {
+                if (nearest.dist < 1.3) {
           this.energy = Math.min(100.0, this.energy + 35.0);
           spawnDecayPuff(nearest.g.x, nearest.g.y, 'apex');
           injectMorphogen(Math.floor(nearest.g.x), Math.floor(nearest.g.y), 2, 0.4);
+          
+          // Inject stress alarm radiation wake at strike coordinates
+          const strikeIdx = cellIdx(Math.floor(nearest.g.x), Math.floor(nearest.g.y));
+          A_field[strikeIdx] = Math.min(8.0, A_field[strikeIdx] + 4.0);
+
           grazers.splice(nearest.idx, 1);
           this.sprintCooldown = 25;
         }
+
       } else {
         desiredVx += (Math.random() - 0.5) * 0.2;
         desiredVy += (Math.random() - 0.5) * 0.2;
