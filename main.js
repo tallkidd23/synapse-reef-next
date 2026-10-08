@@ -789,6 +789,69 @@ const COSMIC_REGIMES = [
   }
 
   // Main Loop
+    // --- Fixed Simulation Timestep (30 Hz / 33.3ms) ---
+  const FIXED_DT = 1000 / 30; // 33.33ms
+  let accumulator = 0;
+  let lastFrameTime = performance.now();
+
+  function stepWorld(climate, now) {
+    seasonalTime += 0.0015;
+    currentSeasonIdx = Math.floor((seasonalTime % (Math.PI * 2)) / (Math.PI * 0.5)) % COSMIC_REGIMES.length;
+
+    globalKuramotoCoupling = Math.max(0.04, globalKuramotoCoupling - 0.001);
+    stepSubstrates(climate);
+
+    for (let i = plants.length - 1; i >= 0; i--) {
+      const p = plants[i];
+      p.update(climate, plants, globalKuramotoCoupling);
+      if (p.energy <= 0 || p.age > p.maxAge) {
+        const sIndex = cellIdx(p.x, p.y);
+        D_field[sIndex] = Math.min(8.0, D_field[sIndex] + 1.2);
+        spawnDecayPuff(p.x, p.y, 'flora');
+        if (p.parent) {
+          const idx = p.parent.children.indexOf(p);
+          if (idx !== -1) p.parent.children.splice(idx, 1);
+        }
+        plants.splice(i, 1);
+      }
+    }
+
+    for (let i = grazers.length - 1; i >= 0; i--) {
+      grazers[i].update(climate, grazers, apexPredators, plants, now);
+      if (grazers[i].energy <= 0) {
+        spawnDecayPuff(grazers[i].x, grazers[i].y, 'grazer');
+        grazers.splice(i, 1);
+      }
+    }
+
+    for (let i = benthicCrabs.length - 1; i >= 0; i--) {
+      benthicCrabs[i].update();
+      if (benthicCrabs[i].energy <= 0) {
+        spawnDecayPuff(benthicCrabs[i].x, benthicCrabs[i].y, 'crab');
+        benthicCrabs.splice(i, 1);
+      }
+    }
+
+    for (let i = apexPredators.length - 1; i >= 0; i--) {
+      apexPredators[i].update();
+      if (apexPredators[i].energy <= 0) {
+        spawnDecayPuff(apexPredators[i].x, apexPredators[i].y, 'apex');
+        apexPredators.splice(i, 1);
+      }
+    }
+
+    for (let i = 0; i < cosmosParticles.length; i++) {
+      const s = cosmosParticles[i];
+      const vel = getCurlVelocity(s.x, s.y, now);
+      s.x = (s.x + vel.u * 0.1 + COLS) % COLS;
+      s.y += vel.v * 0.1;
+      if (s.y < HEADER_ROWS + 1) s.y = ROWS - FOOTER_ROWS - 1;
+      if (s.y > ROWS - FOOTER_ROWS - 1) s.y = HEADER_ROWS + 1;
+      s.twinkle += 0.05;
+    }
+  }
+
+  // Main Loop
   function loop(now) {
     requestAnimationFrame(loop);
 
@@ -799,66 +862,26 @@ const COSMIC_REGIMES = [
       lastFpsUpdate = now;
     }
 
-    ctx.fillStyle = CGA.BLACK;
-    ctx.fillRect(0, 0, width, height);
+    const dt = Math.min(100, now - lastFrameTime);
+    lastFrameTime = now;
 
-    seasonalTime += 0.0015;
-    currentSeasonIdx = Math.floor((seasonalTime % (Math.PI * 2)) / (Math.PI * 0.5)) % COSMIC_REGIMES.length;
     const climate = COSMIC_REGIMES[currentSeasonIdx];
 
     if (!isPaused) {
-      globalKuramotoCoupling = Math.max(0.04, globalKuramotoCoupling - 0.001);
-      stepSubstrates(climate);
-
-      for (let i = plants.length - 1; i >= 0; i--) {
-        const p = plants[i];
-        p.update(climate, plants, globalKuramotoCoupling);
-        if (p.energy <= 0 || p.age > p.maxAge) {
-          const sIndex = cellIdx(p.x, p.y);
-          D_field[sIndex] = Math.min(8.0, D_field[sIndex] + 1.2);
-          spawnDecayPuff(p.x, p.y, 'flora');
-          if (p.parent) {
-            const idx = p.parent.children.indexOf(p);
-            if (idx !== -1) p.parent.children.splice(idx, 1);
-          }
-          plants.splice(i, 1);
-        }
-      }
-
-      for (let i = grazers.length - 1; i >= 0; i--) {
-        grazers[i].update(climate, grazers, apexPredators, plants, now);
-        if (grazers[i].energy <= 0) {
-          spawnDecayPuff(grazers[i].x, grazers[i].y, 'grazer');
-          grazers.splice(i, 1);
-        }
-      }
-
-      for (let i = benthicCrabs.length - 1; i >= 0; i--) {
-        benthicCrabs[i].update();
-        if (benthicCrabs[i].energy <= 0) {
-          spawnDecayPuff(benthicCrabs[i].x, benthicCrabs[i].y, 'crab');
-          benthicCrabs.splice(i, 1);
-        }
-      }
-
-      for (let i = apexPredators.length - 1; i >= 0; i--) {
-        apexPredators[i].update();
-        if (apexPredators[i].energy <= 0) {
-          spawnDecayPuff(apexPredators[i].x, apexPredators[i].y, 'apex');
-          apexPredators.splice(i, 1);
-        }
-      }
-
-      for (let i = 0; i < cosmosParticles.length; i++) {
-        const s = cosmosParticles[i];
-        const vel = getCurlVelocity(s.x, s.y, now);
-        s.x = (s.x + vel.u * 0.1 + COLS) % COLS;
-        s.y += vel.v * 0.1;
-        if (s.y < HEADER_ROWS + 1) s.y = ROWS - FOOTER_ROWS - 1;
-        if (s.y > ROWS - FOOTER_ROWS - 1) s.y = HEADER_ROWS + 1;
-        s.twinkle += 0.05;
+      accumulator += dt;
+      let steps = 0;
+      while (accumulator >= FIXED_DT && steps < 3) {
+        stepWorld(climate, now);
+        accumulator -= FIXED_DT;
+        steps++;
       }
     }
+
+    ctx.fillStyle = CGA.BLACK;
+    ctx.fillRect(0, 0, width, height);
+
+    // --- Substrate Morphogenesis Pass ---
+
 
     // --- Substrate Morphogenesis Pass ---
     ctx.font = '12px "Courier New", monospace';
