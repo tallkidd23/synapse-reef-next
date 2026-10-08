@@ -1,6 +1,7 @@
-// Synapse Reef v3.1 - Tropical Lagoon & Natural Reef Palette Engine
-// Top-down tropical lagoon view: warm white-to-golden sand substrate, dynamic turquoise water caustics,
-// vibrant coral species (staghorn emerald, violet gorgonian, sun coral), electric blue grazers, and tiger-amber predators.
+// Synapse Reef v3.2 - Photorealistic Aerial Lagoon & Organic Coral Heads Engine
+// Natural Coral Morphology (Lobate Coral Domes, Plate Corals, Staghorn Bundles),
+// Exact Photo Palette (Indigo Blue, Magenta-Violet, Mustard Ochre, Olive Gold),
+// Shaded Relief & Voronoi Water Caustics over White Lagoon Sand.
 
 (function () {
   'use strict';
@@ -46,7 +47,6 @@
     if (plants.length === 0) initEcosystem();
   }
 
-  // Drawer interaction
   if (drawerToggle && drawer) {
     drawerToggle.addEventListener('click', () => {
       const isExpanded = drawer.classList.toggle('expanded');
@@ -57,11 +57,60 @@
     });
   }
 
+  // --- Real-World Lagoon Coral Palette Matching Attached Aerial Photo ---
+  const CORAL_SPECIES = [
+    {
+      name: 'Indigo Porites',
+      base: '#1b3a6b',
+      mid: '#2b58a1',
+      highlight: '#4a80d4',
+      shadow: '#0d1d36',
+      stem: 'rgba(43, 88, 161, ',
+      shapeType: 'lobate'
+    },
+    {
+      name: 'Magenta Stylophora',
+      base: '#6b1839',
+      mid: '#9b2b58',
+      highlight: '#c84b7e',
+      shadow: '#3d0a1e',
+      stem: 'rgba(155, 43, 88, ',
+      shapeType: 'branched'
+    },
+    {
+      name: 'Mustard Ochre Montipora',
+      base: '#6b5414',
+      mid: '#a68524',
+      highlight: '#d4b03f',
+      shadow: '#382a08',
+      stem: 'rgba(166, 133, 36, ',
+      shapeType: 'plate'
+    },
+    {
+      name: 'Olive-Gold Brain Coral',
+      base: '#465319',
+      mid: '#73872e',
+      highlight: '#a6be4a',
+      shadow: '#222909',
+      stem: 'rgba(115, 135, 46, ',
+      shapeType: 'mound'
+    },
+    {
+      name: 'Deep Violet Gorgonian',
+      base: '#3a1f59',
+      mid: '#5c338c',
+      highlight: '#8c59c4',
+      shadow: '#1e0e30',
+      stem: 'rgba(92, 51, 140, ',
+      shapeType: 'lobate'
+    }
+  ];
+
   // --- Continuous Seasonal Environmental Cycle Engine ---
   const SEASONS = [
     {
       name: 'Verdant Solstice',
-      desc: 'Summer Solar Max & High Lagoon Transparency',
+      desc: 'Summer Lagoon Sunlight & High Clarity',
       alpha_sun: 1.15,
       beta_climate: 0.005,
       waterTemp: 27.2,
@@ -69,8 +118,8 @@
       ph: 8.22,
       turingF: 0.038,
       turingK: 0.061,
-      sandHue: { r: 232, g: 218, b: 178 }, // Warm golden lagoon sand
-      waterTint: { r: 0, g: 180, b: 200 }   // Turquoise shimmer
+      sandHue: { r: 238, g: 242, b: 236 },
+      waterTint: { r: 160, g: 235, b: 245 }
     },
     {
       name: 'Nutrient Monsoon',
@@ -82,8 +131,8 @@
       ph: 8.08,
       turingF: 0.046,
       turingK: 0.063,
-      sandHue: { r: 210, g: 195, b: 160 }, // Wet silt sand
-      waterTint: { r: 0, g: 150, b: 185 }
+      sandHue: { r: 215, g: 220, b: 210 },
+      waterTint: { r: 120, g: 205, b: 225 }
     },
     {
       name: 'Arid Eclipse',
@@ -95,12 +144,12 @@
       ph: 8.30,
       turingF: 0.028,
       turingK: 0.058,
-      sandHue: { r: 185, g: 165, b: 135 }, // Dusky shadows
-      waterTint: { r: 10, g: 110, b: 160 }
+      sandHue: { r: 195, g: 198, b: 190 },
+      waterTint: { r: 80, g: 170, b: 200 }
     },
     {
       name: 'Bioluminescent Bloom',
-      desc: 'Spring Coral Spawning & Vivid Reef iridescence',
+      desc: 'Spring Coral Spawning & Vivid Reef Iridescence',
       alpha_sun: 1.30,
       beta_climate: 0.010,
       waterTemp: 25.8,
@@ -108,8 +157,8 @@
       ph: 8.24,
       turingF: 0.054,
       turingK: 0.062,
-      sandHue: { r: 245, g: 235, b: 205 }, // Bright white coral sand
-      waterTint: { r: 20, g: 210, b: 220 }
+      sandHue: { r: 248, g: 250, b: 245 },
+      waterTint: { r: 180, g: 245, b: 255 }
     }
   ];
 
@@ -124,8 +173,8 @@
     ph: 8.18,
     turingF: 0.038,
     turingK: 0.061,
-    sandHue: { r: 235, g: 222, b: 185 },
-    waterTint: { r: 0, g: 180, b: 200 }
+    sandHue: { r: 238, g: 242, b: 236 },
+    waterTint: { r: 160, g: 235, b: 245 }
   };
 
   function updateSeasonalCycle() {
@@ -162,7 +211,7 @@
     };
   }
 
-  // --- Substrate Fields & Morphogens ---
+  // --- Substrate Fields & Turing Morphogens ---
   let S_field, D_field, A_field;
   let Turing_U, Turing_V, next_U, next_V;
   let morphCycleTime = 0;
@@ -250,7 +299,6 @@
     }
   }
 
-  // --- Incompressible Current Field ---
   function getCurlVelocity(x, y, t) {
     const scale = 0.0035;
     const eps = 1.0;
@@ -270,7 +318,7 @@
     };
   }
 
-  // --- Marine Snow Particles (Sunlit Floating Specks) ---
+  // --- Marine Snow Particles ---
   const marineSnow = [];
   const SNOW_COUNT = 55;
 
@@ -287,15 +335,7 @@
     }
   }
 
-  // --- Coral Species & Colors (Staghorn Emerald, Violet Gorgonian, Sun Coral Gold) ---
-  const CORAL_PALETTES = [
-    { stem: 'rgba(39, 174, 96, ', polyp: '#2ecc71', flash: '#a3e4d7', glow: 'rgba(46, 204, 113, ' },   // Emerald Staghorn
-    { stem: 'rgba(142, 68, 173, ', polyp: '#9b59b6', flash: '#e8daef', glow: 'rgba(155, 89, 182, ' },  // Violet Gorgonian
-    { stem: 'rgba(211, 84, 0, ', polyp: '#e67e22', flash: '#f9e79f', glow: 'rgba(230, 126, 34, ' },     // Sun Coral Amber
-    { stem: 'rgba(22, 160, 133, ', polyp: '#1abc9c', flash: '#d1f2eb', glow: 'rgba(26, 188, 156, ' }     // Turquoise Brain Coral
-  ];
-
-  // --- Autotrophs (Kuramoto Coupled Dendritic Coral Heads) ---
+  // --- Organic Autotroph Coral Head (Non-Circular Shaded Anatomy) ---
   const plants = [];
   const sparks = [];
   const decayPuffs = [];
@@ -309,7 +349,18 @@
       this.parent = parent || null;
       this.children = [];
       this.synapseWeights = new Map();
-      this.speciesIdx = speciesIdx !== undefined ? speciesIdx : (parent ? parent.speciesIdx : Math.floor(Math.random() * CORAL_PALETTES.length));
+      this.speciesIdx = speciesIdx !== undefined ? speciesIdx : (parent ? parent.speciesIdx : Math.floor(Math.random() * CORAL_SPECIES.length));
+
+      // Organic shape jitter offsets
+      this.lobeOffsets = [
+        0.85 + Math.random() * 0.35,
+        0.85 + Math.random() * 0.35,
+        0.85 + Math.random() * 0.35,
+        0.85 + Math.random() * 0.35,
+        0.85 + Math.random() * 0.35,
+        0.85 + Math.random() * 0.35
+      ];
+      this.rotation = Math.random() * Math.PI * 2;
 
       this.energy = 16.0;
       this.age = 0;
@@ -341,7 +392,6 @@
       this.phi = Math.max(0.0, this.phi - 0.035);
       if (this.defCalc > 0) this.defCalc--;
 
-      // Kuramoto phase locking
       let phaseCouplingSum = 0;
       let connectedCount = 0;
 
@@ -418,9 +468,59 @@
         }
       }
     }
+
+    drawHead(ctx, now) {
+      const sp = CORAL_SPECIES[this.speciesIdx] || CORAL_SPECIES[0];
+      const breath = (Math.sin(this.theta) + 1.0) * 0.5;
+      const baseR = Math.min(8.0, 3.2 + (this.energy / 14.0) + this.phi * 2.5 + breath * 1.0);
+
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rotation);
+
+      // 1. Cast Bottom Shadow onto Seabed (Creates 3D Depth)
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(15, 30, 25, 0.35)';
+      ctx.ellipse(2, 3, baseR * 1.1, baseR * 0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Multi-Lobed Organic Coral Ridge Contour
+      ctx.beginPath();
+      const numPoints = 6;
+      for (let j = 0; j <= numPoints; j++) {
+        const ang = (j / numPoints) * Math.PI * 2;
+        const lobeRadius = baseR * this.lobeOffsets[j % numPoints];
+        const px = Math.cos(ang) * lobeRadius;
+        const py = Math.sin(ang) * lobeRadius;
+        if (j === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+
+      // 3. Shaded Spherical / Rim Lighting Gradient
+      const grad = ctx.createRadialGradient(-baseR * 0.3, -baseR * 0.3, baseR * 0.1, 0, 0, baseR);
+      if (this.phi > 0.1) {
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.5, sp.highlight);
+        grad.addColorStop(1, sp.mid);
+      } else {
+        grad.addColorStop(0, sp.highlight);
+        grad.addColorStop(0.55, sp.mid);
+        grad.addColorStop(1, sp.shadow);
+      }
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // 4. Subtle Texture Ridges / Granules
+      ctx.strokeStyle = sp.shadow;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+
+      ctx.restore();
+    }
   }
 
-  // --- Grazers (Electric Cyan/Sapphire Reef Fish with Bright Yellow Fin Accents) ---
+  // --- Grazers (Electric Cyan/Sapphire Reef Fish with Golden Fins) ---
   const grazers = [];
   const apexPredators = [];
   const benthicCrabs = [];
@@ -560,7 +660,7 @@
     }
   }
 
-  // --- Apex Predators (Tiger Amber & Deep Crimson Hunter Sharks) ---
+  // --- Dynamic Apex Predators (Tiger Amber & Deep Crimson Hunter Sharks) ---
   class OrganicApex {
     constructor(x, y) {
       this.x = x;
@@ -657,7 +757,7 @@
     }
   }
 
-  // --- Benthic Crabs (Coral Hermit Orange / Terracotta) ---
+  // --- Benthic Crabs ---
   class OrganicBenthicCrab {
     constructor(x, y) {
       this.x = x;
@@ -782,7 +882,7 @@
     for (let k = 0; k < rootCount; k++) {
       const rootX = 35 + (k / (rootCount - 1)) * (width - 70) + (Math.random() - 0.5) * 25;
       const rootY = height * 0.65 + Math.random() * (height * 0.25);
-      const speciesIdx = k % CORAL_PALETTES.length;
+      const speciesIdx = k % CORAL_SPECIES.length;
       const root = new DendriticAutotroph(rootX, rootY, null, 1, speciesIdx);
       plants.push(root);
 
@@ -960,7 +1060,7 @@
 
     // --- DRAWING STAGE ---
 
-    // 1. Natural Sand Substrate with Reaction-Diffusion Shadow Veins & Mineral Loam
+    // 1. Natural White-to-Golden Lagoon Sand Substrate with Deep Trench Shadowing
     if (showSubstrate) {
       const imgData = subCtx.createImageData(SUB_COLS, SUB_ROWS);
       const data = imgData.data;
@@ -976,14 +1076,13 @@
           const turingV = Turing_V[i];
           const turingU = Turing_U[i];
 
-          // Sand base (white to golden beige) with darker reef trench shadowing
-          const shadow = (1.0 - turingU) * 45 + dVal * 35;
-          const mineralGlow = sVal * 25 + turingV * 30;
+          const shadow = (1.0 - turingU) * 65 + dVal * 40;
+          const mineralGlow = sVal * 25 + turingV * 28;
 
-          const r = Math.max(12, Math.min(255, Math.floor(sand.r * 0.28 + aVal * 180 + mineralGlow * 1.2 - shadow * 0.6)));
-          const g = Math.max(22, Math.min(255, Math.floor(sand.g * 0.32 + sVal * 40 + turingV * 55 - shadow * 0.4)));
-          const b = Math.max(20, Math.min(255, Math.floor(sand.b * 0.30 + turingV * 45 + (1.0 - turingU) * 20)));
-          const alpha = Math.min(255, Math.floor((0.75 + sVal * 0.15 + turingV * 0.10) * 255));
+          const r = Math.max(15, Math.min(255, Math.floor(sand.r * 0.38 + aVal * 160 + mineralGlow - shadow * 0.7)));
+          const g = Math.max(25, Math.min(255, Math.floor(sand.g * 0.42 + sVal * 35 + turingV * 40 - shadow * 0.5)));
+          const b = Math.max(25, Math.min(255, Math.floor(sand.b * 0.44 + turingV * 48 + (1.0 - turingU) * 20)));
+          const alpha = Math.min(255, Math.floor((0.85 + sVal * 0.12) * 255));
 
           data[pIdx] = r;
           data[pIdx + 1] = g;
@@ -1001,21 +1100,39 @@
       ctx.restore();
     }
 
-    // 2. Turquoise Water Movement & Surface Caustic Shimmers
+    // 2. Realistic Voronoi Wave Network Caustic Light Web (Matches Photo Water Caustics)
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    const tWater = now * 0.0008;
+    const tWater = now * 0.001;
+
+    ctx.strokeStyle = 'rgba(235, 255, 255, 0.22)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    const causticStep = 48;
+    for (let cx = 0; cx < width + causticStep; cx += causticStep) {
+      for (let cy = 0; cy < height + causticStep; cy += causticStep) {
+        const ox = Math.sin(tWater + cx * 0.02 + cy * 0.015) * 12;
+        const oy = Math.cos(tWater * 0.8 + cy * 0.02 + cx * 0.01) * 12;
+        const px = cx + ox;
+        const py = cy + oy;
+
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + causticStep * 0.5 + Math.sin(tWater + py * 0.03) * 6, py + causticStep * 0.5);
+      }
+    }
+    ctx.stroke();
+
     const causticGrad = ctx.createRadialGradient(
-      width * 0.5 + Math.sin(tWater) * 60,
-      height * 0.4 + Math.cos(tWater * 0.7) * 40,
-      10,
+      width * 0.5,
+      height * 0.4,
+      20,
       width * 0.5,
       height * 0.5,
-      Math.max(width, height) * 0.7
+      Math.max(width, height) * 0.75
     );
     const tint = currentClimate.waterTint;
-    causticGrad.addColorStop(0, `rgba(${tint.r}, ${tint.g}, ${tint.b}, 0.18)`);
-    causticGrad.addColorStop(0.5, `rgba(${tint.r * 0.6}, ${tint.g * 0.8}, ${tint.b}, 0.09)`);
+    causticGrad.addColorStop(0, `rgba(${tint.r}, ${tint.g}, ${tint.b}, 0.22)`);
+    causticGrad.addColorStop(0.6, `rgba(${tint.r * 0.5}, ${tint.g * 0.7}, ${tint.b}, 0.12)`);
     causticGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = causticGrad;
     ctx.fillRect(0, 0, width, height);
@@ -1042,14 +1159,14 @@
     ctx.save();
     for (let i = 0; i < marineSnow.length; i++) {
       const s = marineSnow[i];
-      ctx.fillStyle = `rgba(225, 248, 245, ${s.alpha})`;
+      ctx.fillStyle = `rgba(240, 255, 252, ${s.alpha})`;
       ctx.beginPath();
       ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
 
-    // 5. Species-Colored Dendritic Coral Tendrils
+    // 5. Natural Organic Dendritic Tendrils
     for (let i = 0; i < plants.length; i++) {
       const p = plants[i];
       if (p.parent && plants.includes(p.parent)) {
@@ -1058,11 +1175,11 @@
           const firing = p.phi > 0.05 || p.parent.phi > 0.05;
           const w = p.parent.synapseWeights.get(p) || 1.0;
           const phaseSyncBrightness = (Math.sin(p.theta) + 1.0) * 0.5;
-          const pal = CORAL_PALETTES[p.speciesIdx] || CORAL_PALETTES[0];
+          const sp = CORAL_SPECIES[p.speciesIdx] || CORAL_SPECIES[0];
 
-          const alpha = firing ? Math.min(0.90, 0.45 * w) : Math.min(0.40, (0.15 + phaseSyncBrightness * 0.18) * w);
-          ctx.strokeStyle = firing ? '#ffffff' : `${pal.stem}${alpha})`;
-          ctx.lineWidth = firing ? 2.0 : 1.1 + phaseSyncBrightness * 0.4;
+          const alpha = firing ? Math.min(0.95, 0.55 * w) : Math.min(0.50, (0.20 + phaseSyncBrightness * 0.20) * w);
+          ctx.strokeStyle = firing ? '#ffffff' : `${sp.stem}${alpha})`;
+          ctx.lineWidth = firing ? 2.2 : 1.3 + phaseSyncBrightness * 0.4;
 
           const sway = Math.sin(p.theta) * 2.2;
           const midX = (p.parent.x + p.x) * 0.5 + sway;
@@ -1076,21 +1193,10 @@
       }
     }
 
-    // 6. Autotroph Polyps (Multi-Hue Coral Blooms)
+    // 6. Organic Shaded Coral Polyp Heads (Replaces Flat Circles)
     for (let i = 0; i < plants.length; i++) {
-      const p = plants[i];
-      const pal = CORAL_PALETTES[p.speciesIdx] || CORAL_PALETTES[0];
-      const breath = (Math.sin(p.theta) + 1.0) * 0.5;
-      const r = Math.min(6.5, 2.4 + (p.energy / 15.0) + p.phi * 2.2 + breath * 0.8);
-
-      ctx.beginPath();
-      ctx.fillStyle = p.phi > 0.1 ? pal.flash : pal.polyp;
-      ctx.shadowColor = p.phi > 0.1 ? '#ffffff' : pal.polyp;
-      ctx.shadowBlur = p.phi > 0.1 ? 12 : 3 + breath * 4;
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.fill();
+      plants[i].drawHead(ctx, now);
     }
-    ctx.shadowBlur = 0;
 
     // 7. Bioluminescent Traveling Sparks (Electric Cyan / Gold Pulses)
     for (let i = sparks.length - 1; i >= 0; i--) {
@@ -1120,12 +1226,13 @@
     for (let i = 0; i < benthicCrabs.length; i++) {
       const b = benthicCrabs[i];
       ctx.beginPath();
-      ctx.fillStyle = '#e67e22';
-      ctx.shadowColor = 'rgba(230, 126, 34, 0.4)';
+      ctx.fillStyle = '#c0392b';
+      ctx.shadowColor = 'rgba(192, 57, 43, 0.4)';
       ctx.shadowBlur = 4;
       ctx.arc(b.x, b.y, 3.2, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.shadowBlur = 0;
 
     // 9. Grazers (Electric Cyan / Sapphire Reef Fish with Golden Fins)
     for (let i = 0; i < grazers.length; i++) {
@@ -1136,17 +1243,15 @@
       ctx.translate(g.x, g.y);
       ctx.rotate(heading);
 
-      // Streamlined body
       ctx.beginPath();
-      ctx.fillStyle = g.genome.isArmored ? '#f39c12' : '#00d2d3';
-      ctx.shadowColor = g.genome.isArmored ? '#f39c12' : '#00f2fe';
+      ctx.fillStyle = g.genome.isArmored ? '#f39c12' : '#0984e3';
+      ctx.shadowColor = g.genome.isArmored ? '#f39c12' : '#74b9ff';
       ctx.shadowBlur = 5;
       ctx.ellipse(0, 0, 4.2, 2.1, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Golden tail fin
       ctx.beginPath();
-      ctx.fillStyle = '#feca57';
+      ctx.fillStyle = '#fdcb6e';
       ctx.arc(-3.5, 0, 1.2, 0, Math.PI * 2);
       ctx.fill();
 
@@ -1164,16 +1269,15 @@
       ctx.rotate(heading);
 
       ctx.beginPath();
-      ctx.fillStyle = a.isSprinting ? '#ee5253' : '#ff9f43';
-      ctx.shadowColor = a.isSprinting ? '#ff6b6b' : '#ee5253';
-      ctx.shadowBlur = a.isSprinting ? 18 : 10;
+      ctx.fillStyle = a.isSprinting ? '#d63031' : '#e17055';
+      ctx.shadowColor = a.isSprinting ? '#ff7675' : '#d63031';
+      ctx.shadowBlur = 18 : 10;
       const len = a.isSprinting ? 8.5 : 6.8;
       ctx.ellipse(0, 0, len + Math.sin(a.pulse) * 0.8, 3.6, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Dorsal stripe
       ctx.beginPath();
-      ctx.fillStyle = '#222f3e';
+      ctx.fillStyle = '#2d3436';
       ctx.ellipse(-1.0, 0, 2.8, 1.0, 0, 0, Math.PI * 2);
       ctx.fill();
 
