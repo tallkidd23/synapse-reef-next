@@ -1,4 +1,4 @@
-// Synapse Reef v3.2 - Photorealistic Aerial Lagoon & Organic Coral Heads Engine
+// Synapse Reef v3.3 - Photorealistic Aerial Lagoon & Organic Coral Heads Engine
 // Natural Coral Morphology (Lobate Coral Domes, Plate Corals, Staghorn Bundles),
 // Exact Photo Palette (Indigo Blue, Magenta-Violet, Mustard Ochre, Olive Gold),
 // Shaded Relief & Voronoi Water Caustics over White Lagoon Sand.
@@ -351,7 +351,6 @@
       this.synapseWeights = new Map();
       this.speciesIdx = speciesIdx !== undefined ? speciesIdx : (parent ? parent.speciesIdx : Math.floor(Math.random() * CORAL_SPECIES.length));
 
-      // Organic shape jitter offsets
       this.lobeOffsets = [
         0.85 + Math.random() * 0.35,
         0.85 + Math.random() * 0.35,
@@ -1271,7 +1270,7 @@
       ctx.beginPath();
       ctx.fillStyle = a.isSprinting ? '#d63031' : '#e17055';
       ctx.shadowColor = a.isSprinting ? '#ff7675' : '#d63031';
-      ctx.shadowBlur = 18 : 10;
+      ctx.shadowBlur = a.isSprinting ? 18 : 10;
       const len = a.isSprinting ? 8.5 : 6.8;
       ctx.ellipse(0, 0, len + Math.sin(a.pulse) * 0.8, 3.6, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -1360,3 +1359,4 @@
   initEcosystem();
   requestAnimationFrame(loop);
 })();
+,message:fix: deploy photorealistic aerial lagoon reef engine and resolve syntax error,owner:tallkidd23,path:main.js,repo:synapse-reef-next,sha:133bbda154a2c09ac286b039ef6d7b1e6eb56252},source_id:github_mcp_direct,tool_name:create_or_update_file,user_description:Updating main.js with photorealistic aerial lagoon engine}
