@@ -36,13 +36,54 @@
     WHITE: '#FFFFFF'
   };
 
-  // Seasonal Regimes
-  const SEASONS = [
-    { name: 'VERDANT SOLSTICE', F: 0.038, k: 0.061, temp: 26.5, lux: 1.2, ph: 8.18, bgChar: '░', color: CGA.GREEN },
-    { name: 'NUTRIENT MONSOON', F: 0.046, k: 0.063, temp: 23.0, lux: 0.9, ph: 8.08, bgChar: '▒', color: CGA.CYAN },
-    { name: 'ARID ECLIPSE', F: 0.028, k: 0.058, temp: 28.5, lux: 0.6, ph: 8.30, bgChar: '·', color: CGA.BROWN },
-    { name: 'BIOLUMINESCENT BLOOM', F: 0.054, k: 0.062, temp: 25.8, lux: 1.4, ph: 8.24, bgChar: '▓', color: CGA.LIGHT_CYAN }
-  ];
+  // Cosmic Regimes
+const COSMIC_REGIMES = [
+  {
+    name: 'STELLAR ZENITH',
+    morphogenFeed: 0.038,
+    morphogenDamping: 0.061,
+    plasmaTemperature: 26.5,
+    stellarFlux: 1.2,
+    ionizationIndex: 8.18,
+    matterInflow: 0.005,
+    dustGlyph: '░',
+    color: CGA.GREEN
+  },
+  {
+    name: 'NEBULAR ACCRETION',
+    morphogenFeed: 0.046,
+    morphogenDamping: 0.063,
+    plasmaTemperature: 23.0,
+    stellarFlux: 0.9,
+    ionizationIndex: 8.08,
+    matterInflow: 0.015,
+    dustGlyph: '▒',
+    color: CGA.CYAN
+  },
+  {
+    name: 'PULSAR SHADOW',
+    morphogenFeed: 0.028,
+    morphogenDamping: 0.058,
+    plasmaTemperature: 28.5,
+    stellarFlux: 0.6,
+    ionizationIndex: 8.30,
+    matterInflow: 0.001,
+    dustGlyph: '·',
+    color: CGA.BROWN
+  },
+  {
+    name: 'AURORA RESONANCE',
+    morphogenFeed: 0.054,
+    morphogenDamping: 0.062,
+    plasmaTemperature: 25.8,
+    stellarFlux: 1.4,
+    ionizationIndex: 8.24,
+    matterInflow: 0.008,
+    dustGlyph: '▓',
+    color: CGA.LIGHT_CYAN
+  }
+];
+
 
   let seasonalTime = 0;
   let currentSeasonIdx = 0;
@@ -115,8 +156,8 @@
   function stepTuringMorphogenesis(climate) {
     morphCycleTime += 0.005;
     const breathing = Math.sin(morphCycleTime) * 0.003;
-    const F = climate.F + breathing;
-    const k = climate.k + breathing * 0.5;
+    const F = climate.morphogenFeed + breathing;
+    const k = climate.morphogenDamping + breathing * 0.5;
     const Du = 0.16;
     const Dv = 0.08;
 
@@ -268,7 +309,7 @@
         if (other !== this && Math.hypot(other.x - this.x, other.y - this.y) < 2.5) localCrowd++;
       }
 
-      const solarRate = 0.65 * (climate.lux || 1.0) * turingBoost;
+      const solarRate = 0.65 * (climate.stellarFlux || 1.0) * turingBoost;
       if (localCrowd > 4) {
         this.energy -= 0.08;
       } else {
@@ -601,7 +642,7 @@
       for (let y = HEADER_ROWS; y < ROWS - FOOTER_ROWS; y++) {
         const idx = cellIdx(x, y);
         const dVal = D_field[idx];
-        const deltaD = -0.015 * dVal + (climate.beta_climate || 0.02);
+        const deltaD = -0.015 * dVal + climate.matterInflow;
         D_field[idx] = Math.max(0.0, dVal + deltaD);
         S_field[idx] = Math.min(10.0, S_field[idx] + 1.2 * Math.abs(deltaD));
 
@@ -686,8 +727,8 @@
     ctx.fillRect(0, 0, width, height);
 
     seasonalTime += 0.0015;
-    currentSeasonIdx = Math.floor((seasonalTime % (Math.PI * 2)) / (Math.PI * 0.5)) % SEASONS.length;
-    const climate = SEASONS[currentSeasonIdx];
+    currentSeasonIdx = Math.floor((seasonalTime % (Math.PI * 2)) / (Math.PI * 0.5)) % COSMIC_REGIMES.length;
+    const climate = COSMIC_REGIMES[currentSeasonIdx];
 
     if (!isPaused) {
       globalKuramotoCoupling = Math.max(0.04, globalKuramotoCoupling - 0.001);
