@@ -1020,6 +1020,7 @@
         }
       }
 
+      // Step Apex Predators
       for (let i = apexPredators.length - 1; i >= 0; i--) {
         apexPredators[i].update();
         if (apexPredators[i].energy <= 0) {
@@ -1242,6 +1243,7 @@
       ctx.translate(g.x, g.y);
       ctx.rotate(heading);
 
+      // Streamlined body
       ctx.beginPath();
       ctx.fillStyle = g.genome.isArmored ? '#f39c12' : '#0984e3';
       ctx.shadowColor = g.genome.isArmored ? '#f39c12' : '#74b9ff';
@@ -1249,6 +1251,7 @@
       ctx.ellipse(0, 0, 4.2, 2.1, 0, 0, Math.PI * 2);
       ctx.fill();
 
+      // Golden tail fin
       ctx.beginPath();
       ctx.fillStyle = '#fdcb6e';
       ctx.arc(-3.5, 0, 1.2, 0, Math.PI * 2);
@@ -1359,4 +1362,3 @@
   initEcosystem();
   requestAnimationFrame(loop);
 })();
-,message:fix: deploy photorealistic aerial lagoon reef engine and resolve syntax error,owner:tallkidd23,path:main.js,repo:synapse-reef-next,sha:133bbda154a2c09ac286b039ef6d7b1e6eb56252},source_id:github_mcp_direct,tool_name:create_or_update_file,user_description:Updating main.js with photorealistic aerial lagoon engine}
