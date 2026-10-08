@@ -908,7 +908,7 @@ const COSMIC_REGIMES = [
     const key = e.key.toLowerCase();
     if (key === 'p') isPaused = !isPaused;
     if (key === 's') {
-      const climate = SEASONS[currentSeasonIdx];
+      const climate = COSMIC_REGIMES[currentSeasonIdx];
       stepSubstrates(climate);
     }
     if (key === 'r') reseedCosmos();
@@ -925,7 +925,7 @@ const COSMIC_REGIMES = [
       const clickX = e.clientX - rect.left;
       const col = Math.floor(clickX / CHAR_W);
       if (col < 10) isPaused = !isPaused;
-      else if (col < 20) stepSubstrates(SEASONS[currentSeasonIdx]);
+      else if (col < 20) stepSubstrates(COSMIC_REGIMES[currentSeasonIdx]);
       else if (col < 36) reseedCosmos();
       else if (col < 46) triggerSolarFlare();
       else showDiagnosticHUD = !showDiagnosticHUD;
