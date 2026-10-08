@@ -573,25 +573,46 @@ const COSMIC_REGIMES = [
     }
   }
 
-  function propagateWave(startPlant) {
+    function propagateWave(startPlant) {
     const queue = [{ plant: startPlant, phi: 1.0, depth: 0 }];
     const visited = new Set();
     while (queue.length > 0) {
       const { plant, phi, depth } = queue.shift();
-      if (depth > 6 || phi < 0.08 || visited.has(plant)) continue;
+      if (depth > 7 || phi < 0.05 || visited.has(plant)) continue;
       visited.add(plant);
       plant.phi = Math.max(plant.phi, phi);
+
+      // 1. Forward propagation (Parent -> Children) with Hebbian reinforcement
       for (let i = 0; i < plant.children.length; i++) {
         const child = plant.children[i];
-        sparks.push({ x1: plant.x, y1: plant.y, x2: child.x, y2: child.y, sigma: 0, v: 0.18 });
-        queue.push({ plant: child, phi: phi * 0.75, depth: depth + 1 });
+        let w = plant.synapseWeights.get(child) || 1.0;
+        const nextPhi = phi * 0.75 * Math.min(1.2, w);
+
+        // Hebb's Rule: Co-activation strengthens the synaptic weight
+        const newWeight = Math.min(3.0, w + 0.08 * phi * nextPhi);
+        plant.synapseWeights.set(child, newWeight);
+
+        // Signal velocity scales dynamically with synaptic connection strength
+        const sparkSpeed = 0.16 + (newWeight - 1.0) * 0.05;
+        sparks.push({ x1: plant.x, y1: plant.y, x2: child.x, y2: child.y, sigma: 0, v: sparkSpeed });
+        queue.push({ plant: child, phi: nextPhi, depth: depth + 1 });
       }
+
+      // 2. Retrograde propagation (Child -> Parent)
       if (plant.parent && !visited.has(plant.parent)) {
-        sparks.push({ x1: plant.x, y1: plant.y, x2: plant.parent.x, y2: plant.parent.y, sigma: 0, v: 0.18 });
-        queue.push({ plant: plant.parent, phi: phi * 0.70, depth: depth + 1 });
+        let w = plant.parent.synapseWeights.get(plant) || 1.0;
+        const nextPhi = phi * 0.70 * Math.min(1.2, w);
+
+        const newWeight = Math.min(3.0, w + 0.06 * phi * nextPhi);
+        plant.parent.synapseWeights.set(plant, newWeight);
+
+        const sparkSpeed = 0.16 + (newWeight - 1.0) * 0.05;
+        sparks.push({ x1: plant.x, y1: plant.y, x2: plant.parent.x, y2: plant.parent.y, sigma: 0, v: sparkSpeed });
+        queue.push({ plant: plant.parent, phi: nextPhi, depth: depth + 1 });
       }
     }
   }
+
 
   function reseedCosmos() {
     plants.length = 0;
