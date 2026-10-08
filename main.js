@@ -505,7 +505,8 @@
       const sIndex = cellIdx(Math.floor(this.x), Math.floor(this.y));
       if (D_field[sIndex] > 0.2) {
         D_field[sIndex] -= 0.3;
-        S_field[sIndex] = Math.min(10.0, S_field[sIndex] + 0.55);\n        this.energy = Math.min(90.0, this.energy + 0.6);
+        S_field[sIndex] = Math.min(10.0, S_field[sIndex] + 0.55);
+        this.energy = Math.min(90.0, this.energy + 0.6);
       }
       this.vx += (Math.random() - 0.5) * 0.08;
       this.vx = Math.max(-0.35, Math.min(0.35, this.vx));
