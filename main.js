@@ -93,6 +93,23 @@ const COSMIC_REGIMES = [
   let frameCount = 0;
   let currentFps = 60;
 
+  // --- Seeded Deterministic PRNG (Mulberry32) ---
+  let cosmosSeed = Math.floor(Math.random() * 0xFFFFFF);
+  let prngState = cosmosSeed;
+
+  function setSeed(s) {
+    cosmosSeed = s >>> 0;
+    prngState = cosmosSeed;
+  }
+
+  function rng() {
+    let t = (prngState += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+
+
   // Substrates & Fields
   let S_field, D_field, A_field;
   let Turing_U, Turing_V, next_U, next_V;
@@ -647,7 +664,10 @@ const COSMIC_REGIMES = [
   }
 
 
-  function reseedCosmos() {
+    function reseedCosmos(newSeed) {
+    if (newSeed !== undefined) setSeed(newSeed);
+    else setSeed(Math.floor(Math.random() * 0xFFFFFF));
+
     plants.length = 0;
     grazers.length = 0;
     apexPredators.length = 0;
@@ -656,6 +676,7 @@ const COSMIC_REGIMES = [
     decayPuffs.length = 0;
     initCosmosParticles();
     initFields();
+
 
     const rootCount = 7;
     for (let k = 0; k < rootCount; k++) {
@@ -738,7 +759,8 @@ const COSMIC_REGIMES = [
     const topBorder = '╔' + '═'.repeat(Math.max(0, COLS - 2)) + '╗';
     ctx.fillText(topBorder, 0, 0);
 
-    const title = `║ [SYNAPSE-COSMOS v5.0] REGIME: ${climate.name}  ENTITIES: ${totalEntities}  FPS: ${currentFps}`;
+        const seedHex = cosmosSeed.toString(16).toUpperCase().padStart(6, '0');
+    const title = `║ [SYNAPSE-COSMOS v5.0] SEED: ${seedHex} │ REGIME: ${climate.name} │ ENTITIES: ${totalEntities} │ FPS: ${currentFps}`;
     const paddedTitle = title.padEnd(COLS - 1, ' ') + '║';
     ctx.fillText(paddedTitle, 0, CHAR_H);
 
