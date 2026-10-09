@@ -1,6 +1,6 @@
-// Synapse Cosmos Multiverse Engine - Multi-Simulation Parallel Stack
+// Synapse Cosmos Multiverse Engine - Multi-Simulation Parallel Stack + Inter-Universal Wormholes
 // Real-time simultaneous universes with 2x2 Quadrant Matrix, 1x3 Vertical Stack, and 1x1 Focused View.
-// Full IBM-PC CP437 ASCII / CGA terminal rendering with isolated ecological dynamics.
+// Full IBM-PC CP437 ASCII / CGA terminal rendering with Einstein-Rosen bridges for cross-universe gene/spore transfer.
 
 (function () {
   'use strict';
@@ -62,7 +62,6 @@
   }
 
   // --- Multiverse Layout Engine ---
-  // Modes: '2x2' (4 universes), '1x3' (3 vertical stacks), '1x1' (Single focused universe)
   let layoutMode = '2x2';
   let focusedSectorIdx = 0;
   let isPaused = false;
@@ -71,8 +70,19 @@
   let frameCount = 0;
   let currentFps = 60;
 
+  // Inter-Universal Wormhole Portal Manager
+  const wormholeNodes = [
+    { fromSector: 0, toSector: 1, x: 0.85, y: 0.35, spin: 0, active: true },
+    { fromSector: 1, toSector: 2, x: 0.15, y: 0.80, spin: 0, active: true },
+    { fromSector: 2, toSector: 3, x: 0.85, y: 0.70, spin: 0, active: true },
+    { fromSector: 3, toSector: 0, x: 0.15, y: 0.30, spin: 0, active: true }
+  ];
+
+  const transitSparks = [];
+
   class UniverseSector {
-    constructor(id, name, seed) {
+    constructor(idx, id, name, seed) {
+      this.sectorIdx = idx;
       this.id = id;
       this.name = name;
       this.seed = seed;
@@ -91,7 +101,7 @@
       this.nextU = null;
       this.nextV = null;
       this.morphCycleTime = 0;
-      this.seasonalTime = id === 'SEC-01' ? 0 : id === 'SEC-02' ? 1.57 : id === 'SEC-03' ? 3.14 : 4.71;
+      this.seasonalTime = idx * 1.57;
       this.globalKuramotoCoupling = 0.04;
 
       this.plants = [];
@@ -309,7 +319,7 @@
       this.TuringV.set(this.nextV);
     }
 
-    update(now) {
+    update(now, allSectors) {
       this.seasonalTime += 0.0015;
       const seasonIdx = Math.floor((this.seasonalTime / (Math.PI * 2)) * SEASONS.length) % SEASONS.length;
       const climate = SEASONS[seasonIdx];
@@ -317,7 +327,15 @@
       this.globalKuramotoCoupling = Math.max(0.04, this.globalKuramotoCoupling - 0.001);
       this.stepSubstrates(climate);
 
-      // Flora
+      // Local Wormhole Exit/Entrance
+      const myWormhole = wormholeNodes[this.sectorIdx];
+      const whX = Math.floor(myWormhole.x * this.cols);
+      const whY = Math.floor(this.headerRows + myWormhole.y * (this.rows - this.headerRows - this.footerRows));
+
+      // Continuous Wormhole Morphogen Emission
+      this.injectMorphogen(whX, whY, 2, 0.15);
+
+      // 1. Flora Update + Cross-Sector Spore Emission
       for (let i = this.plants.length - 1; i >= 0; i--) {
         const p = this.plants[i];
         p.age++;
@@ -347,6 +365,33 @@
         const solarRate = 0.65 * climate.lux * 1.0 * turingBoost;
         p.energy += solarRate * u - 0.09;
 
+        // Wormhole Spore Ingestion -> Target Sector Colonization
+        if (Math.hypot(p.x - whX, p.y - whY) < 3.0 && p.energy > 15.0 && this.rng() < 0.015) {
+          const targetSector = allSectors[myWormhole.toSector];
+          if (targetSector && targetSector.plants.length < targetSector.maxPlants) {
+            const tWh = wormholeNodes[targetSector.sectorIdx];
+            const tX = Math.floor(tWh.x * targetSector.cols) + (this.rng() < 0.5 ? 1 : -1);
+            const tY = Math.floor(targetSector.headerRows + tWh.y * (targetSector.rows - targetSector.headerRows - targetSector.footerRows));
+            targetSector.plants.push({
+              x: Math.max(1, Math.min(targetSector.cols - 2, tX)),
+              y: Math.max(targetSector.headerRows + 1, Math.min(targetSector.rows - targetSector.footerRows - 1, tY)),
+              parent: null,
+              children: [],
+              synapseWeights: new Map(),
+              speciesIdx: p.speciesIdx,
+              energy: 18.0,
+              age: 0,
+              maxAge: 1400 + Math.floor(this.rng() * 600),
+              phi: 1.0,
+              theta: p.theta,
+              naturalFreq: p.naturalFreq
+            });
+            targetSector.injectMorphogen(tX, tY, 2, 0.5);
+            transitSparks.push({ from: this.sectorIdx, to: targetSector.sectorIdx, progress: 0, color: CGA.LIGHT_MAGENTA });
+          }
+        }
+
+        // Upward Branch Growth
         if (p.energy > 14.0 && p.children.length < 2 && this.plants.length < this.maxPlants && this.rng() < 0.25) {
           const dx = this.rng() < 0.5 ? -1 : 1;
           const dy = -1 - (this.rng() < 0.25 ? 1 : 0);
@@ -378,7 +423,7 @@
         }
       }
 
-      // Grazers
+      // 2. Grazer Harvesters Update + Wormhole Transit
       for (let i = this.grazers.length - 1; i >= 0; i--) {
         const g = this.grazers[i];
         g.age++;
@@ -452,6 +497,39 @@
           }
         }
 
+        // Wormhole Gravity Pull & Transit
+        const distToWh = Math.hypot(g.x - whX, g.y - whY);
+        if (distToWh < 6.0) {
+          const pull = (6.0 - distToWh) / 6.0;
+          evadeX += ((whX - g.x) / Math.max(distToWh, 0.1)) * pull * 0.8;
+          evadeY += ((whY - g.y) / Math.max(distToWh, 0.1)) * pull * 0.8;
+
+          // Event Horizon Crossed -> Teleport to destination universe!
+          if (distToWh < 1.4) {
+            const targetSector = allSectors[myWormhole.toSector];
+            if (targetSector) {
+              const tWh = wormholeNodes[targetSector.sectorIdx];
+              const tX = tWh.x * targetSector.cols;
+              const tY = targetSector.headerRows + tWh.y * (targetSector.rows - targetSector.headerRows - targetSector.footerRows);
+
+              this.grazers.splice(i, 1);
+              targetSector.grazers.push({
+                x: tX + (this.rng() - 0.5) * 2.0,
+                y: tY + (this.rng() - 0.5) * 2.0,
+                vx: g.vx * 1.2,
+                vy: g.vy * 1.2,
+                energy: g.energy,
+                age: g.age,
+                genome: g.genome,
+                maxSpeed: g.maxSpeed
+              });
+
+              transitSparks.push({ from: this.sectorIdx, to: targetSector.sectorIdx, progress: 0, color: CGA.YELLOW });
+              continue;
+            }
+          }
+        }
+
         let desiredX = curl.u * 0.1 + flockVx * 0.8 + forageVx * 0.9;
         let desiredY = curl.v * 0.1 + flockVy * 0.8 + forageVy * 0.9;
         if (inDanger) {
@@ -492,7 +570,7 @@
         }
       }
 
-      // Apex Hunters
+      // 3. Apex Hunters Update
       for (let i = this.apexPredators.length - 1; i >= 0; i--) {
         const a = this.apexPredators[i];
         a.energy -= 0.28;
@@ -557,7 +635,7 @@
         }
       }
 
-      // Crabs
+      // 4. Crabs
       for (let i = this.benthicCrabs.length - 1; i >= 0; i--) {
         const b = this.benthicCrabs[i];
         b.energy -= 0.05;
@@ -590,13 +668,14 @@
 
       ctx.font = '11px Courier New, monospace';
       ctx.fillStyle = CGA.LIGHT_CYAN;
-      const title = `[${this.id}] ${this.name.toUpperCase()} :: ${climate.name.slice(0, 12)} FL:${this.plants.length} GZ:${this.grazers.length} AP:${this.apexPredators.length}`;
+      const title = `[${this.id}] ${this.name.toUpperCase()} :: ${climate.name.slice(0, 10)} FL:${this.plants.length} GZ:${this.grazers.length} AP:${this.apexPredators.length}`;
       ctx.fillText(title.slice(0, this.cols), originX + 4, originY + 2);
 
       const headerLine = '═'.repeat(Math.max(0, this.cols));
       ctx.fillStyle = CGA.DARK_GRAY;
       ctx.fillText(headerLine, originX, originY + cellH);
 
+      // Morphogen Field Render
       for (let x = 0; x < this.cols; x++) {
         for (let y = this.headerRows; y < this.rows - this.footerRows; y++) {
           const i = this.cellIdx(x, y);
@@ -625,6 +704,20 @@
         }
       }
 
+      // Wormhole Event Horizon Portal Rendering
+      const myWormhole = wormholeNodes[this.sectorIdx];
+      const whX = Math.floor(myWormhole.x * this.cols);
+      const whY = Math.floor(this.headerRows + myWormhole.y * (this.rows - this.headerRows - this.footerRows));
+      myWormhole.spin = (myWormhole.spin + 0.15) % (Math.PI * 2);
+
+      const portalGlyphs = ['☼', '◎', '⦿', '○', '•'];
+      const pIdx = Math.floor((Math.sin(myWormhole.spin) * 0.5 + 0.5) * portalGlyphs.length) % portalGlyphs.length;
+      ctx.fillStyle = CGA.LIGHT_MAGENTA;
+      ctx.fillText(portalGlyphs[pIdx], originX + whX * cellW, originY + whY * cellH);
+      ctx.fillStyle = CGA.LIGHT_CYAN;
+      ctx.fillText(`⮞SEC-0${myWormhole.toSector + 1}`, originX + (whX - 2) * cellW, originY + (whY + 1) * cellH);
+
+      // Flora
       for (let i = 0; i < this.plants.length; i++) {
         const p = this.plants[i];
         const sp = SPECIES_DOS[p.speciesIdx] || SPECIES_DOS[0];
@@ -632,6 +725,7 @@
         ctx.fillText(sp.char, originX + p.x * cellW, originY + p.y * cellH);
       }
 
+      // Grazers
       for (let i = 0; i < this.grazers.length; i++) {
         const g = this.grazers[i];
         let fChar = '>';
@@ -651,6 +745,7 @@
         ctx.fillText(fChar, originX + Math.floor(g.x) * cellW, originY + Math.floor(g.y) * cellH);
       }
 
+      // Apex Hunters
       for (let i = 0; i < this.apexPredators.length; i++) {
         const a = this.apexPredators[i];
         const heading = Math.atan2(a.vy, a.vx);
@@ -663,6 +758,7 @@
         ctx.fillText(aChar, originX + Math.floor(a.x) * cellW, originY + Math.floor(a.y) * cellH);
       }
 
+      // Crabs
       ctx.fillStyle = CGA.BROWN;
       for (let i = 0; i < this.benthicCrabs.length; i++) {
         const b = this.benthicCrabs[i];
@@ -672,10 +768,10 @@
   }
 
   const sectors = [
-    new UniverseSector('SEC-01', 'Abyssal Trench', 0x7A49B2),
-    new UniverseSector('SEC-02', 'Biolume Shelf', 0xC914E3),
-    new UniverseSector('SEC-03', 'Solstice Spire', 0x11DF08),
-    new UniverseSector('SEC-04', 'Resonance Basin', 0x88FA20)
+    new UniverseSector(0, 'SEC-01', 'Abyssal Trench', 0x7A49B2),
+    new UniverseSector(1, 'SEC-02', 'Biolume Shelf', 0xC914E3),
+    new UniverseSector(2, 'SEC-03', 'Solstice Spire', 0x11DF08),
+    new UniverseSector(3, 'SEC-04', 'Resonance Basin', 0x88FA20)
   ];
 
   function resize() {
@@ -716,8 +812,44 @@
     const divider = '═'.repeat(Math.floor(width / CHAR_W));
     ctx.fillText(divider, 0, footerTop);
 
-    const nav = ` [M] LAYOUT: ${layoutMode.toUpperCase()}  |  [P] ${isPaused ? 'RESUME' : 'PAUSE'}  |  [R] RESEED ALL  |  [1-4] FOCUS SECTOR  |  FPS: ${currentFps}`;
+    const nav = ` [M] LAYOUT: ${layoutMode.toUpperCase()}  |  [W] WORMHOLES: ACTIVE  |  [P] ${isPaused ? 'RESUME' : 'PAUSE'}  |  [R] RESEED  |  FPS: ${currentFps}`;
     ctx.fillText(nav, 0, footerTop + CHAR_H);
+  }
+
+  function renderTransitBeams() {
+    if (layoutMode !== '2x2') return;
+
+    for (let i = transitSparks.length - 1; i >= 0; i--) {
+      const spark = transitSparks[i];
+      spark.progress += 0.04;
+
+      if (spark.progress >= 1.0) {
+        transitSparks.splice(i, 1);
+        continue;
+      }
+
+      // Compute visual screen coords between source and dest portals
+      const fromSector = sectors[spark.from];
+      const toSector = sectors[spark.to];
+      const qCols = fromSector.cols;
+      const qRows = fromSector.rows;
+
+      const fOffX = (spark.from % 2 === 1) ? qCols * CHAR_W : 0;
+      const fOffY = (spark.from >= 2) ? qRows * CHAR_H : 0;
+      const tOffX = (spark.to % 2 === 1) ? qCols * CHAR_W : 0;
+      const tOffY = (spark.to >= 2) ? qRows * CHAR_H : 0;
+
+      const fX = fOffX + wormholeNodes[spark.from].x * qCols * CHAR_W;
+      const fY = fOffY + (fromSector.headerRows + wormholeNodes[spark.from].y * (qRows - 3)) * CHAR_H;
+      const tX = tOffX + wormholeNodes[spark.to].x * qCols * CHAR_W;
+      const tY = tOffY + (toSector.headerRows + wormholeNodes[spark.to].y * (qRows - 3)) * CHAR_H;
+
+      const curX = fX + (tX - fX) * spark.progress;
+      const curY = fY + (tY - fY) * spark.progress;
+
+      ctx.fillStyle = spark.color;
+      ctx.fillText('✦', curX, curY);
+    }
   }
 
   function loop(now) {
@@ -734,7 +866,7 @@
     ctx.fillRect(0, 0, width, height);
 
     if (!isPaused) {
-      sectors.forEach(s => s.update(now));
+      sectors.forEach(s => s.update(now, sectors));
     }
 
     if (layoutMode === '2x2') {
@@ -744,6 +876,7 @@
       sectors[1].render(ctx, qCols * CHAR_W, 0, CHAR_W, CHAR_H);
       sectors[2].render(ctx, 0, qRows * CHAR_H, CHAR_W, CHAR_H);
       sectors[3].render(ctx, qCols * CHAR_W, qRows * CHAR_H, CHAR_W, CHAR_H);
+      renderTransitBeams();
     } else if (layoutMode === '1x3') {
       const cCols = sectors[0].cols;
       sectors[0].render(ctx, 0, 0, CHAR_W, CHAR_H);
