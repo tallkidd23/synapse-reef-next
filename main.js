@@ -1,6 +1,7 @@
-// SYNAPSE COSMOS: MULTIVERSE ASTROPHYSICAL ORIGIN & GALAXY FORMATION ENGINE
+// SYNAPSE COSMOS: MULTIVERSE ASTROPHYSICAL ORIGIN & GALAXY FORMATION ENGINE (DIMENSIONAL SUITE)
 // Full mathematical parity: Gray-Scott Stellar Nucleogenesis, Navier-Stokes Galactic Curl Infall,
-// Kuramoto Pulsar Synchronization, N-Body Accretion Boids, and Einstein-Rosen Wormhole Transport.
+// Kuramoto Pulsar Entanglement, Relativistic Accretion Jets, Gravitational Wave Ripples,
+// N-Body Accretion Boids, and Einstein-Rosen Wormhole Transport.
 // Rendered in pure IBM-PC CP437 ASCII / 16-Color CGA Retrotech Graphics.
 
 (function () {
@@ -44,12 +45,12 @@
     { name: 'QUASAR RELATIVISTIC', F: 0.054, k: 0.062, uvFlux: 2.4, tempK: 240000, bgChar: ':', color: CGA.LIGHT_MAGENTA }
   ];
 
-  // Stellar & Proto-Galactic Evolutionary Classes
+  // Stellar & Proto-Galactic Evolutionary Classes (Pop III -> Pop II -> Pop I -> Compact Remnant)
   const STELLAR_CLASSES = [
-    { name: 'Class-O Blue Hypergiant', char: '☼', filament: '|', color: CGA.LIGHT_BLUE, flash: CGA.WHITE },
-    { name: 'Ionized H-II Emission Hub', char: 'ж', filament: '+', color: CGA.LIGHT_MAGENTA, flash: CGA.WHITE },
-    { name: 'Protostellar Nursery Core', char: '▲', filament: ':', color: CGA.YELLOW, flash: CGA.WHITE },
-    { name: 'Magnetar / Neutron Remnant', char: '♦', filament: '#', color: CGA.LIGHT_GREEN, flash: CGA.WHITE }
+    { name: 'Pop-III Blue Hypergiant', char: '☼', filament: '|', color: CGA.LIGHT_BLUE, flash: CGA.WHITE, metallicity: 'Zero (H/He)' },
+    { name: 'Pop-II H-II Starburst Hub', char: 'ж', filament: '+', color: CGA.LIGHT_MAGENTA, flash: CGA.WHITE, metallicity: 'Low (CNO)' },
+    { name: 'Pop-I Protostellar Core', char: '▲', filament: ':', color: CGA.YELLOW, flash: CGA.WHITE, metallicity: 'Solar (Iron-Rich)' },
+    { name: 'Relativistic Magnetar', char: '♦', filament: '#', color: CGA.LIGHT_GREEN, flash: CGA.WHITE, metallicity: 'Degenerate' }
   ];
 
   // Mulberry32 deterministic PRNG
@@ -64,7 +65,6 @@
     };
   }
 
-  // Multiverse Layout Modes: '2x2' (Quadrant Matrix), '1x3' (Column Stack), '1x1' (Focused Sector)
   let layoutMode = '2x2';
   let focusedSectorIdx = 0;
   let isPaused = false;
@@ -96,23 +96,30 @@
       this.headerRows = 2;
       this.footerRows = 1;
 
-      // Dark Matter & Baryonic Gas Potential Fields
-      this.BaryonGas = null;      // S-Field: Neutral Baryonic Hydrogen Density
-      this.StellarDust = null;    // D-Field: Heavy Element Supernova Remnant Metallicity
+      // Dark Matter, Baryonic Gas, Gravitational Radiation & Turing Substrates
+      this.BaryonGas = null;      // S-Field: Neutral Hydrogen Gas Density
+      this.StellarDust = null;    // D-Field: Supernova Metallicity & Heavy Dust
       this.GravAlarm = null;      // A-Field: High-Energy Relativistic Shockwave Radiation
       this.TuringU = null;        // Un-ionized Diffuse Molecular Substrate
       this.TuringV = null;        // Ionized H-II Starburst Shock Fronts
       this.nextU = null;
       this.nextV = null;
+
+      // 2D Gravitational Wave Metric Field (Riemann Curvature Perturbation)
+      this.GW_curr = null;
+      this.GW_prev = null;
+      this.GW_next = null;
+
       this.morphCycleTime = 0;
       this.epochTime = idx * 1.57;
       this.globalKuramotoCoupling = 0.04;
 
-      // Astrophysical Entities
-      this.stellarCores = [];      // Autotroph Stars & Proto-Cluster nodes
-      this.accretionSwarm = [];    // Harvester Protoplanets & Asteroid accretion boids
-      this.supermassiveHoles = []; // Apex Supermassive Black Holes & Hawking Sinks
-      this.dustCondensers = [];    // Recycler Cosmic Dust Regulators
+      // Astrophysical Entities & Relativistic Jets
+      this.stellarCores = [];
+      this.accretionSwarm = [];
+      this.supermassiveHoles = [];
+      this.dustCondensers = [];
+      this.relativisticJets = [];
       this.cosmicDust = [];
 
       this.maxStars = 75;
@@ -136,6 +143,10 @@
       this.nextU = new Float32Array(total);
       this.nextV = new Float32Array(total);
 
+      this.GW_curr = new Float32Array(total);
+      this.GW_prev = new Float32Array(total);
+      this.GW_next = new Float32Array(total);
+
       for (let y = 0; y < this.rows; y++) {
         const gravitationalWell = 1.0 + (y / this.rows) * 1.5;
         for (let x = 0; x < this.cols; x++) {
@@ -145,8 +156,10 @@
           this.GravAlarm[i] = 0.0;
           this.TuringU[i] = 1.0;
           this.TuringV[i] = 0.0;
+          this.GW_curr[i] = 0.0;
+          this.GW_prev[i] = 0.0;
+          this.GW_next[i] = 0.0;
 
-          // Prime galactic core seed
           if (y > this.headerRows + 3 && Math.hypot(x - this.cols * 0.5, y - this.rows * 0.7) < 4 && this.rng() < 0.035) {
             this.TuringV[i] = 0.8;
           }
@@ -196,13 +209,19 @@
       }
     }
 
+    triggerGravitationalWave(cx, cy, amplitude) {
+      const i = this.cellIdx(Math.floor(cx), Math.floor(cy));
+      this.GW_curr[i] += amplitude;
+    }
+
     mutateAccretionGenome(parentGenome) {
       const drift = () => 1.0 + (this.rng() * 0.20 - 0.10);
       return {
         accretionBite: Math.max(1.2, Math.min(5.0, (parentGenome ? parentGenome.accretionBite : 2.8) * drift())),
         gravSense: Math.max(4, Math.min(12, Math.round((parentGenome ? parentGenome.gravSense : 8) * drift()))),
         orbitalVelocity: Math.max(0.40, Math.min(0.90, (parentGenome ? parentGenome.orbitalVelocity : 0.60) * drift())),
-        isDenseIronCore: parentGenome ? (this.rng() < 0.12 ? !parentGenome.isDenseIronCore : parentGenome.isDenseIronCore) : this.rng() < 0.20
+        isDenseIronCore: parentGenome ? (this.rng() < 0.12 ? !parentGenome.isDenseIronCore : parentGenome.isDenseIronCore) : this.rng() < 0.20,
+        metallicityZ: parentGenome ? Math.min(1.0, parentGenome.metallicityZ + this.rng() * 0.08) : this.rng() * 0.15
       };
     }
 
@@ -211,6 +230,7 @@
       this.accretionSwarm = [];
       this.supermassiveHoles = [];
       this.dustCondensers = [];
+      this.relativisticJets = [];
 
       const rootCount = 5;
       for (let k = 0; k < rootCount; k++) {
@@ -220,7 +240,8 @@
         const root = {
           x: rootX, y: rootY, parent: null, filaments: [],
           speciesIdx: spIdx, fusionEnergy: 16.0, age: 0, maxAge: 1400 + Math.floor(this.rng() * 600),
-          phi: 0.0, theta: this.rng() * Math.PI * 2, naturalFreq: 0.03 + (this.rng() - 0.5) * 0.01
+          phi: 0.0, theta: this.rng() * Math.PI * 2, naturalFreq: 0.03 + (this.rng() - 0.5) * 0.01,
+          entangledPair: null
         };
         this.stellarCores.push(root);
 
@@ -230,7 +251,8 @@
           const child = {
             x: bX, y: bY, parent: root, filaments: [],
             speciesIdx: spIdx, fusionEnergy: 16.0, age: 0, maxAge: 1400 + Math.floor(this.rng() * 600),
-            phi: 0.0, theta: this.rng() * Math.PI * 2, naturalFreq: 0.03 + (this.rng() - 0.5) * 0.01
+            phi: 0.0, theta: this.rng() * Math.PI * 2, naturalFreq: 0.03 + (this.rng() - 0.5) * 0.01,
+            entangledPair: null
           };
           root.filaments.push(child);
           this.stellarCores.push(child);
@@ -269,7 +291,8 @@
           cruiseSpeed: 0.65,
           burstSpeed: 1.10,
           isJetSprinting: false,
-          jetCooldown: 0
+          jetCooldown: 0,
+          jetAngle: this.rng() * Math.PI * 2
         });
       }
     }
@@ -281,10 +304,14 @@
       const k = epoch.k + breathing * 0.5;
       const Du = 0.16;
       const Dv = 0.08;
+      const waveSpeedSq = 0.20;
+      const waveDamping = 0.96;
 
       for (let x = 0; x < this.cols; x++) {
         for (let y = this.headerRows; y < this.rows - this.footerRows; y++) {
           const i = this.cellIdx(x, y);
+
+          // 1. Gray-Scott Starburst Reaction Diffusion
           const u = this.TuringU[i];
           const v = this.TuringV[i];
           const lapU = (this.TuringU[this.cellIdx(x + 1, y)] + this.TuringU[this.cellIdx(x - 1, y)] +
@@ -307,7 +334,13 @@
           this.nextU[i] = Math.max(0.0, Math.min(1.0, nU));
           this.nextV[i] = Math.max(0.0, Math.min(1.0, nV));
 
-          // Supernova Metallicity Diffusion & Baryon Recycling
+          // 2. Gravitational Wave 2D Wave Propagation (Riemann Metric Ripple)
+          const lapGW = (this.GW_curr[this.cellIdx(x + 1, y)] + this.GW_curr[this.cellIdx(x - 1, y)] +
+            this.GW_curr[this.cellIdx(x, y + 1)] + this.GW_curr[this.cellIdx(x, y - 1)]) - 4.0 * this.GW_curr[i];
+          let nextGW = (2.0 * this.GW_curr[i] - this.GW_prev[i] + waveSpeedSq * lapGW) * waveDamping;
+          this.GW_next[i] = Math.abs(nextGW) < 0.002 ? 0.0 : nextGW;
+
+          // 3. Supernova Metallicity Diffusion & Gas Enrichment
           const dVal = this.StellarDust[i];
           const deltaD = -0.015 * dVal + 0.02;
           this.StellarDust[i] = Math.max(0.0, dVal + deltaD);
@@ -319,6 +352,8 @@
 
       this.TuringU.set(this.nextU);
       this.TuringV.set(this.nextV);
+      this.GW_prev.set(this.GW_curr);
+      this.GW_curr.set(this.GW_next);
     }
 
     update(now, allSectors) {
@@ -334,10 +369,9 @@
       const whX = Math.floor(myWormhole.x * this.cols);
       const whY = Math.floor(this.headerRows + myWormhole.y * (this.rows - this.headerRows - this.footerRows));
 
-      // Continuous Singularity Accretion Glow
       this.injectIonization(whX, whY, 2, 0.15);
 
-      // 1. Stellar Cores & Cluster Filaments
+      // 1. Stellar Cores, Pop-III/II/I Evolution & Cross-Wormhole Quantum Entanglement
       for (let i = this.stellarCores.length - 1; i >= 0; i--) {
         const star = this.stellarCores[i];
         star.age++;
@@ -356,6 +390,13 @@
             connectedCount++;
           }
         }
+
+        // Non-Local Kuramoto Quantum Entanglement Coupling across wormhole
+        if (star.entangledPair) {
+          phaseCouplingSum += Math.sin(star.entangledPair.theta - star.theta) * 2.0;
+          connectedCount += 2;
+        }
+
         star.theta += star.naturalFreq + (connectedCount > 0 ? (this.globalKuramotoCoupling / connectedCount) * phaseCouplingSum : 0);
         star.theta %= (Math.PI * 2);
 
@@ -367,14 +408,15 @@
         const accretionRate = 0.65 * epoch.uvFlux * 1.0 * turingBoost;
         star.fusionEnergy += accretionRate * u - 0.09;
 
-        // Wormhole Primordial Spore Transfer to Connected Sector
+        // Wormhole Colonization with Quantum Entanglement Link
         if (Math.hypot(star.x - whX, star.y - whY) < 3.0 && star.fusionEnergy > 15.0 && this.rng() < 0.015) {
           const targetSector = allSectors[myWormhole.toSector];
           if (targetSector && targetSector.stellarCores.length < targetSector.maxStars) {
             const tWh = wormholeNodes[targetSector.sectorIdx];
             const tX = Math.floor(tWh.x * targetSector.cols) + (this.rng() < 0.5 ? 1 : -1);
             const tY = Math.floor(targetSector.headerRows + tWh.y * (targetSector.rows - targetSector.headerRows - targetSector.footerRows));
-            targetSector.stellarCores.push({
+            
+            const twin = {
               x: Math.max(1, Math.min(targetSector.cols - 2, tX)),
               y: Math.max(targetSector.headerRows + 1, Math.min(targetSector.rows - targetSector.footerRows - 1, tY)),
               parent: null,
@@ -385,14 +427,17 @@
               maxAge: 1400 + Math.floor(this.rng() * 600),
               phi: 1.0,
               theta: star.theta,
-              naturalFreq: star.naturalFreq
-            });
+              naturalFreq: star.naturalFreq,
+              entangledPair: star
+            };
+            star.entangledPair = twin;
+            targetSector.stellarCores.push(twin);
             targetSector.injectIonization(tX, tY, 2, 0.5);
             transitSparks.push({ from: this.sectorIdx, to: targetSector.sectorIdx, progress: 0, color: CGA.LIGHT_MAGENTA });
           }
         }
 
-        // Branching Galactic Bridge / Cluster Growth
+        // Branching Galactic Bridge
         if (star.fusionEnergy > 14.0 && star.filaments.length < 2 && this.stellarCores.length < this.maxStars && this.rng() < 0.25) {
           const dx = this.rng() < 0.5 ? -1 : 1;
           const dy = -1 - (this.rng() < 0.25 ? 1 : 0);
@@ -405,7 +450,8 @@
             const child = {
               x: childX, y: childY, parent: star, filaments: [],
               speciesIdx: star.speciesIdx, fusionEnergy: 16.0, age: 0, maxAge: 1400 + Math.floor(this.rng() * 600),
-              phi: 0.0, theta: this.rng() * Math.PI * 2, naturalFreq: 0.03 + (this.rng() - 0.5) * 0.01
+              phi: 0.0, theta: this.rng() * Math.PI * 2, naturalFreq: 0.03 + (this.rng() - 0.5) * 0.01,
+              entangledPair: null
             };
             star.filaments.push(child);
             this.stellarCores.push(child);
@@ -413,13 +459,15 @@
           }
         }
 
-        // Supernova Collapse -> Dust Nucleation
+        // Supernova Collapse -> Trigger Gravitational Wave Ripple & Heavy Element Dust
         if (star.fusionEnergy <= 0 || star.age > star.maxAge) {
           this.StellarDust[sIndex] = Math.min(8.0, this.StellarDust[sIndex] + 1.2);
+          this.triggerGravitationalWave(star.x, star.y, 2.5);
           if (star.parent) {
             const idx = star.parent.filaments.indexOf(star);
             if (idx !== -1) star.parent.filaments.splice(idx, 1);
           }
+          if (star.entangledPair) star.entangledPair.entangledPair = null;
           this.stellarCores.splice(i, 1);
         }
       }
@@ -460,7 +508,6 @@
           flockVy = sepY * 0.25 + alignY * 0.2 + cohY * 0.02;
         }
 
-        // Black Hole Evasion
         let evadeX = 0, evadeY = 0, inDanger = false;
         for (let j = 0; j < this.supermassiveHoles.length; j++) {
           const hole = this.supermassiveHoles[j];
@@ -473,7 +520,6 @@
           }
         }
 
-        // Baryon Infall Foraging toward nearest active Protostar Core
         let infallVx = 0, infallVy = 0, closestStar = null, closestDist = Infinity;
         const senseR = body.genome.gravSense || 8;
         for (let j = 0; j < this.stellarCores.length; j++) {
@@ -500,7 +546,7 @@
           }
         }
 
-        // Wormhole Horizon Infall & Inter-Universal Leap
+        // Wormhole Horizon Crossing
         const distToWh = Math.hypot(body.x - whX, body.y - whY);
         if (distToWh < 6.0) {
           const pull = (6.0 - distToWh) / 6.0;
@@ -553,7 +599,6 @@
         if (body.y < this.headerRows + 1) body.y = this.headerRows + 1;
         if (body.y > this.rows - this.footerRows - 1) body.y = this.rows - this.footerRows - 1;
 
-        // Mitotic Protoplanet Fission
         if (body.massEnergy > 55.0 && this.accretionSwarm.length < 35) {
           body.massEnergy -= 28.0;
           this.accretionSwarm.push({
@@ -573,12 +618,32 @@
         }
       }
 
-      // 3. Supermassive Black Holes & Tidal Disruption Events
+      // 3. Supermassive Black Holes, Relativistic Jet Ejection & Tidal Disruption
       for (let i = this.supermassiveHoles.length - 1; i >= 0; i--) {
         const hole = this.supermassiveHoles[i];
         hole.singularityMass -= 0.28;
         if (hole.jetCooldown > 0) hole.jetCooldown--;
         hole.isJetSprinting = false;
+
+        // Bipolar Relativistic Jet Emission
+        hole.jetAngle = (hole.jetAngle + 0.04) % (Math.PI * 2);
+        if (this.rng() < 0.25) {
+          const jetSpeed = 1.6;
+          this.relativisticJets.push({
+            x: hole.x, y: hole.y,
+            vx: Math.cos(hole.jetAngle) * jetSpeed,
+            vy: Math.sin(hole.jetAngle) * jetSpeed,
+            life: 22,
+            color: CGA.LIGHT_MAGENTA
+          });
+          this.relativisticJets.push({
+            x: hole.x, y: hole.y,
+            vx: -Math.cos(hole.jetAngle) * jetSpeed,
+            vy: -Math.sin(hole.jetAngle) * jetSpeed,
+            life: 22,
+            color: CGA.LIGHT_CYAN
+          });
+        }
 
         let nearest = null, minDist = Infinity;
         for (let j = 0; j < this.accretionSwarm.length; j++) {
@@ -616,10 +681,12 @@
               victim.vx -= (dx / safeDist) * 1.5;
               victim.vy -= (dy / safeDist) * 1.5;
               hole.jetCooldown = 30;
+              this.triggerGravitationalWave(victim.x, victim.y, 1.2);
             } else {
               hole.singularityMass = Math.min(100.0, hole.singularityMass + 35.0);
               this.injectIonization(Math.floor(victim.x), Math.floor(victim.y), 2, 0.4);
               this.GravAlarm[strikeIdx] = Math.min(8.0, this.GravAlarm[strikeIdx] + 4.0);
+              this.triggerGravitationalWave(victim.x, victim.y, 3.5);
               this.accretionSwarm.splice(nearest.idx, 1);
               hole.jetCooldown = 25;
             }
@@ -638,7 +705,23 @@
         }
       }
 
-      // 4. Interstellar Dust Condensers
+      // 4. Relativistic Jets Propagation
+      for (let i = this.relativisticJets.length - 1; i >= 0; i--) {
+        const jet = this.relativisticJets[i];
+        jet.x += jet.vx;
+        jet.y += jet.vy;
+        jet.life--;
+
+        // Ionize and shock gas cells along the beam track
+        const jIdx = this.cellIdx(Math.floor(jet.x), Math.floor(jet.y));
+        this.TuringV[jIdx] = Math.min(1.0, this.TuringV[jIdx] + 0.15);
+
+        if (jet.life <= 0 || jet.x < 0 || jet.x >= this.cols || jet.y < this.headerRows || jet.y >= this.rows - this.footerRows) {
+          this.relativisticJets.splice(i, 1);
+        }
+      }
+
+      // 5. Interstellar Dust Condensers
       for (let i = this.dustCondensers.length - 1; i >= 0; i--) {
         const d = this.dustCondensers[i];
         d.coreEnergy -= 0.05;
@@ -678,26 +761,31 @@
       ctx.fillStyle = CGA.DARK_GRAY;
       ctx.fillText(headerLine, originX, originY + cellH);
 
-      // Gas Density & Starburst Ionization Field Render
+      // Gas Density, Starburst Ionization & Gravitational Wave Metric Render
       for (let x = 0; x < this.cols; x++) {
         for (let y = this.headerRows; y < this.rows - this.footerRows; y++) {
           const i = this.cellIdx(x, y);
           const v = this.TuringV[i];
           const s = this.BaryonGas[i] / 10.0;
           const a = this.GravAlarm[i] / 8.0;
+          const gw = Math.abs(this.GW_curr[i]);
 
           let ch = ' ';
           let col = CGA.BLACK;
 
-          if (a > 0.15) {
+          // Gravitational Wave Ripple Overlay
+          if (gw > 0.4) {
+            ch = gw > 1.2 ? ')' : '~';
+            col = CGA.LIGHT_CYAN;
+          } else if (a > 0.15) {
             ch = '!';
-            col = CGA.RED; // Relativistic Shock
+            col = CGA.RED;
           } else if (v > 0.4) {
             ch = v > 0.7 ? '#' : '%';
-            col = epoch.color; // Ionized Starburst Nebula
+            col = epoch.color;
           } else if (s > 0.35) {
             ch = '.';
-            col = CGA.DARK_GRAY; // Cold Molecular Hydrogen
+            col = CGA.DARK_GRAY;
           }
 
           if (ch !== ' ') {
@@ -720,11 +808,18 @@
       ctx.fillStyle = CGA.LIGHT_CYAN;
       ctx.fillText(`⮞SEC-0${myWormhole.toSector + 1}`, originX + (whX - 2) * cellW, originY + (whY + 1) * cellH);
 
-      // Stellar Cores
+      // Relativistic Jet Particle Streams
+      for (let i = 0; i < this.relativisticJets.length; i++) {
+        const jet = this.relativisticJets[i];
+        ctx.fillStyle = jet.color;
+        ctx.fillText('»', originX + Math.floor(jet.x) * cellW, originY + Math.floor(jet.y) * cellH);
+      }
+
+      // Stellar Cores & Entangled Pulsars
       for (let i = 0; i < this.stellarCores.length; i++) {
         const star = this.stellarCores[i];
         const sp = STELLAR_CLASSES[star.speciesIdx] || STELLAR_CLASSES[0];
-        ctx.fillStyle = star.phi > 0.08 ? sp.flash : sp.color;
+        ctx.fillStyle = star.phi > 0.08 || (star.entangledPair && star.entangledPair.phi > 0.08) ? sp.flash : sp.color;
         ctx.fillText(sp.char, originX + star.x * cellW, originY + star.y * cellH);
       }
 
@@ -734,16 +829,16 @@
         let fChar = '>';
         if (body.genome && body.genome.isDenseIronCore) {
           fChar = '▲';
-          ctx.fillStyle = CGA.YELLOW; // Dense Iron Core Body
+          ctx.fillStyle = CGA.YELLOW;
         } else if (body.genome && body.genome.orbitalVelocity > 0.68) {
           fChar = '»';
-          ctx.fillStyle = CGA.LIGHT_GREEN; // High-Speed Hypervelocity Rogue
+          ctx.fillStyle = CGA.LIGHT_GREEN;
         } else {
           const heading = Math.atan2(body.vy, body.vx);
           if (Math.abs(heading) > Math.PI * 0.75) fChar = '<';
           else if (heading > Math.PI * 0.25) fChar = 'v';
           else if (heading < -Math.PI * 0.25) fChar = '^';
-          ctx.fillStyle = CGA.LIGHT_CYAN; // Protoplanetary Infall Body
+          ctx.fillStyle = CGA.LIGHT_CYAN;
         }
         ctx.fillText(fChar, originX + Math.floor(body.x) * cellW, originY + Math.floor(body.y) * cellH);
       }
@@ -815,7 +910,7 @@
     const divider = '═'.repeat(Math.floor(width / CHAR_W));
     ctx.fillText(divider, 0, footerTop);
 
-    const nav = ` [M] MATRIX: ${layoutMode.toUpperCase()}  |  [W] WORMHOLES: ACTIVE  |  [P] ${isPaused ? 'RESUME' : 'PAUSE'}  |  [R] BIG BANG RESET  |  FPS: ${currentFps}`;
+    const nav = ` [M] MATRIX: ${layoutMode.toUpperCase()}  |  [GW] RIPPLES: ACTIVE  |  [JETS] ACTIVE  |  [P] ${isPaused ? 'RESUME' : 'PAUSE'}  |  [R] BIG BANG  |  FPS: ${currentFps}`;
     ctx.fillText(nav, 0, footerTop + CHAR_H);
   }
 
