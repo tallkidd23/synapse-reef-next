@@ -1,6 +1,7 @@
-// Synapse Cosmos Multiverse Engine - Multi-Simulation Parallel Stack + Inter-Universal Wormholes
-// Real-time simultaneous universes with 2x2 Quadrant Matrix, 1x3 Vertical Stack, and 1x1 Focused View.
-// Full IBM-PC CP437 ASCII / CGA terminal rendering with Einstein-Rosen bridges for cross-universe gene/spore transfer.
+// SYNAPSE COSMOS: MULTIVERSE ASTROPHYSICAL ORIGIN & GALAXY FORMATION ENGINE
+// Full mathematical parity: Gray-Scott Stellar Nucleogenesis, Navier-Stokes Galactic Curl Infall,
+// Kuramoto Pulsar Synchronization, N-Body Accretion Boids, and Einstein-Rosen Wormhole Transport.
+// Rendered in pure IBM-PC CP437 ASCII / 16-Color CGA Retrotech Graphics.
 
 (function () {
   'use strict';
@@ -15,7 +16,7 @@
   const CHAR_W = 10;
   const CHAR_H = 14;
 
-  // 16-Color CGA / EGA Retro Palette
+  // 16-Color CGA / EGA Retro Astrophysical Palette
   const CGA = {
     BLACK: '#000000',
     BLUE: '#0000AA',
@@ -35,18 +36,20 @@
     WHITE: '#FFFFFF'
   };
 
-  const SEASONS = [
-    { name: 'VERDANT SOLSTICE', F: 0.038, k: 0.061, temp: 26.5, lux: 1.2, ph: 8.18, bgChar: '.', color: CGA.GREEN },
-    { name: 'NUTRIENT MONSOON', F: 0.046, k: 0.063, temp: 23.0, lux: 0.9, ph: 8.08, bgChar: ':', color: CGA.CYAN },
-    { name: 'ARID ECLIPSE', F: 0.028, k: 0.058, temp: 28.5, lux: 0.6, ph: 8.30, bgChar: '.', color: CGA.BROWN },
-    { name: 'BIOLUMINESCENT BLOOM', F: 0.054, k: 0.062, temp: 25.8, lux: 1.4, ph: 8.24, bgChar: ':', color: CGA.LIGHT_CYAN }
+  // Cosmological Epochs
+  const COSMIC_EPOCHS = [
+    { name: 'PRIMORDIAL DAWN', F: 0.038, k: 0.061, uvFlux: 1.4, tempK: 3200, bgChar: '.', color: CGA.LIGHT_BLUE },
+    { name: 'STARBURST ACCRETION', F: 0.046, k: 0.063, uvFlux: 1.8, tempK: 12000, bgChar: ':', color: CGA.LIGHT_CYAN },
+    { name: 'SUPERNOVA CRUCIBLE', F: 0.028, k: 0.058, uvFlux: 0.7, tempK: 85000, bgChar: '.', color: CGA.YELLOW },
+    { name: 'QUASAR RELATIVISTIC', F: 0.054, k: 0.062, uvFlux: 2.4, tempK: 240000, bgChar: ':', color: CGA.LIGHT_MAGENTA }
   ];
 
-  const SPECIES_DOS = [
-    { name: 'Indigo Porites', char: '♠', stemChar: '|', color: CGA.LIGHT_BLUE, flash: CGA.WHITE },
-    { name: 'Magenta Stylophora', char: '♣', stemChar: '+', color: CGA.LIGHT_MAGENTA, flash: CGA.WHITE },
-    { name: 'Mustard Montipora', char: '▲', stemChar: ':', color: CGA.YELLOW, flash: CGA.WHITE },
-    { name: 'Olive Brain Coral', char: '♦', stemChar: '#', color: CGA.LIGHT_GREEN, flash: CGA.WHITE }
+  // Stellar & Proto-Galactic Evolutionary Classes
+  const STELLAR_CLASSES = [
+    { name: 'Class-O Blue Hypergiant', char: '☼', filament: '|', color: CGA.LIGHT_BLUE, flash: CGA.WHITE },
+    { name: 'Ionized H-II Emission Hub', char: 'ж', filament: '+', color: CGA.LIGHT_MAGENTA, flash: CGA.WHITE },
+    { name: 'Protostellar Nursery Core', char: '▲', filament: ':', color: CGA.YELLOW, flash: CGA.WHITE },
+    { name: 'Magnetar / Neutron Remnant', char: '♦', filament: '#', color: CGA.LIGHT_GREEN, flash: CGA.WHITE }
   ];
 
   // Mulberry32 deterministic PRNG
@@ -61,7 +64,7 @@
     };
   }
 
-  // --- Multiverse Layout Engine ---
+  // Multiverse Layout Modes: '2x2' (Quadrant Matrix), '1x3' (Column Stack), '1x1' (Focused Sector)
   let layoutMode = '2x2';
   let focusedSectorIdx = 0;
   let isPaused = false;
@@ -70,12 +73,12 @@
   let frameCount = 0;
   let currentFps = 60;
 
-  // Inter-Universal Wormhole Portal Manager
+  // Inter-Universal Einstein-Rosen Wormhole Topology
   const wormholeNodes = [
-    { fromSector: 0, toSector: 1, x: 0.85, y: 0.35, spin: 0, active: true },
-    { fromSector: 1, toSector: 2, x: 0.15, y: 0.80, spin: 0, active: true },
-    { fromSector: 2, toSector: 3, x: 0.85, y: 0.70, spin: 0, active: true },
-    { fromSector: 3, toSector: 0, x: 0.15, y: 0.30, spin: 0, active: true }
+    { fromSector: 0, toSector: 1, x: 0.85, y: 0.35, spin: 0 },
+    { fromSector: 1, toSector: 2, x: 0.15, y: 0.80, spin: 0 },
+    { fromSector: 2, toSector: 3, x: 0.85, y: 0.70, spin: 0 },
+    { fromSector: 3, toSector: 0, x: 0.15, y: 0.30, spin: 0 }
   ];
 
   const transitSparks = [];
@@ -93,26 +96,26 @@
       this.headerRows = 2;
       this.footerRows = 1;
 
-      this.S_field = null;
-      this.D_field = null;
-      this.A_field = null;
-      this.TuringU = null;
-      this.TuringV = null;
+      // Dark Matter & Baryonic Gas Potential Fields
+      this.BaryonGas = null;      // S-Field: Neutral Baryonic Hydrogen Density
+      this.StellarDust = null;    // D-Field: Heavy Element Supernova Remnant Metallicity
+      this.GravAlarm = null;      // A-Field: High-Energy Relativistic Shockwave Radiation
+      this.TuringU = null;        // Un-ionized Diffuse Molecular Substrate
+      this.TuringV = null;        // Ionized H-II Starburst Shock Fronts
       this.nextU = null;
       this.nextV = null;
       this.morphCycleTime = 0;
-      this.seasonalTime = idx * 1.57;
+      this.epochTime = idx * 1.57;
       this.globalKuramotoCoupling = 0.04;
 
-      this.plants = [];
-      this.grazers = [];
-      this.apexPredators = [];
-      this.benthicCrabs = [];
-      this.sparks = [];
-      this.decayPuffs = [];
-      this.cosmosParticles = [];
+      // Astrophysical Entities
+      this.stellarCores = [];      // Autotroph Stars & Proto-Cluster nodes
+      this.accretionSwarm = [];    // Harvester Protoplanets & Asteroid accretion boids
+      this.supermassiveHoles = []; // Apex Supermassive Black Holes & Hawking Sinks
+      this.dustCondensers = [];    // Recycler Cosmic Dust Regulators
+      this.cosmicDust = [];
 
-      this.maxPlants = 75;
+      this.maxStars = 75;
       this.initFields();
       this.reseed();
     }
@@ -125,37 +128,38 @@
 
     initFields() {
       const total = this.cols * this.rows;
-      this.S_field = new Float32Array(total);
-      this.D_field = new Float32Array(total);
-      this.A_field = new Float32Array(total);
+      this.BaryonGas = new Float32Array(total);
+      this.StellarDust = new Float32Array(total);
+      this.GravAlarm = new Float32Array(total);
       this.TuringU = new Float32Array(total);
       this.TuringV = new Float32Array(total);
       this.nextU = new Float32Array(total);
       this.nextV = new Float32Array(total);
 
       for (let y = 0; y < this.rows; y++) {
-        const depthBias = 1.0 + (y / this.rows) * 1.5;
+        const gravitationalWell = 1.0 + (y / this.rows) * 1.5;
         for (let x = 0; x < this.cols; x++) {
           const i = x + y * this.cols;
-          this.S_field[i] = 3.5 + this.rng() * 3.0 * depthBias;
-          this.D_field[i] = 0.5 * depthBias;
-          this.A_field[i] = 0.0;
+          this.BaryonGas[i] = 3.5 + this.rng() * 3.0 * gravitationalWell;
+          this.StellarDust[i] = 0.5 * gravitationalWell;
+          this.GravAlarm[i] = 0.0;
           this.TuringU[i] = 1.0;
           this.TuringV[i] = 0.0;
 
+          // Prime galactic core seed
           if (y > this.headerRows + 3 && Math.hypot(x - this.cols * 0.5, y - this.rows * 0.7) < 4 && this.rng() < 0.035) {
             this.TuringV[i] = 0.8;
           }
         }
       }
 
-      this.cosmosParticles = [];
-      const glyphs = ['.', '·', '°', '*'];
+      this.cosmicDust = [];
+      const dustGlyphs = ['.', '·', '°', '*'];
       for (let i = 0; i < 20; i++) {
-        this.cosmosParticles.push({
+        this.cosmicDust.push({
           x: this.rng() * this.cols,
           y: this.headerRows + this.rng() * (this.rows - this.headerRows - this.footerRows),
-          char: glyphs[Math.floor(this.rng() * glyphs.length)],
+          char: dustGlyphs[Math.floor(this.rng() * dustGlyphs.length)],
           twinkle: this.rng() * Math.PI * 2
         });
       }
@@ -168,7 +172,7 @@
       this.reseed();
     }
 
-    getCurlVelocity(x, y, t) {
+    getGalacticVorticity(x, y, t) {
       const scale = 0.05;
       const eps = 1.0;
       const tScale = t * 0.0003;
@@ -181,7 +185,7 @@
       return { u: dPsi_dy * 1.5, v: -dPsi_dx * 1.5 + 0.02 };
     }
 
-    injectMorphogen(cx, cy, r, amtV) {
+    injectIonization(cx, cy, r, amtV) {
       for (let dx = -r; dx <= r; dx++) {
         for (let dy = -r; dy <= r; dy++) {
           if (dx * dx + dy * dy <= r * r) {
@@ -192,92 +196,89 @@
       }
     }
 
-    mutateGrazerGenome(parentGenome) {
+    mutateAccretionGenome(parentGenome) {
       const drift = () => 1.0 + (this.rng() * 0.20 - 0.10);
       return {
-        b_eff: Math.max(1.2, Math.min(5.0, (parentGenome ? parentGenome.b_eff : 2.8) * drift())),
-        r_sense: Math.max(4, Math.min(12, Math.round((parentGenome ? parentGenome.r_sense : 8) * drift()))),
-        maxSpeed: Math.max(0.40, Math.min(0.90, (parentGenome ? parentGenome.maxSpeed : 0.60) * drift())),
-        isArmored: parentGenome ? (this.rng() < 0.12 ? !parentGenome.isArmored : parentGenome.isArmored) : this.rng() < 0.20
+        accretionBite: Math.max(1.2, Math.min(5.0, (parentGenome ? parentGenome.accretionBite : 2.8) * drift())),
+        gravSense: Math.max(4, Math.min(12, Math.round((parentGenome ? parentGenome.gravSense : 8) * drift()))),
+        orbitalVelocity: Math.max(0.40, Math.min(0.90, (parentGenome ? parentGenome.orbitalVelocity : 0.60) * drift())),
+        isDenseIronCore: parentGenome ? (this.rng() < 0.12 ? !parentGenome.isDenseIronCore : parentGenome.isDenseIronCore) : this.rng() < 0.20
       };
     }
 
     reseed() {
-      this.plants = [];
-      this.grazers = [];
-      this.apexPredators = [];
-      this.benthicCrabs = [];
-      this.sparks = [];
-      this.decayPuffs = [];
+      this.stellarCores = [];
+      this.accretionSwarm = [];
+      this.supermassiveHoles = [];
+      this.dustCondensers = [];
 
       const rootCount = 5;
       for (let k = 0; k < rootCount; k++) {
         const rootX = Math.floor(3 + (k / (rootCount - 1)) * (this.cols - 6) + (this.rng() - 0.5) * 2);
         const rootY = Math.floor(this.rows - this.footerRows - 2 + this.rng() * 1.5);
-        const spIdx = k % SPECIES_DOS.length;
+        const spIdx = k % STELLAR_CLASSES.length;
         const root = {
-          x: rootX, y: rootY, parent: null, children: [], synapseWeights: new Map(),
-          speciesIdx: spIdx, energy: 16.0, age: 0, maxAge: 1400 + Math.floor(this.rng() * 600),
+          x: rootX, y: rootY, parent: null, filaments: [],
+          speciesIdx: spIdx, fusionEnergy: 16.0, age: 0, maxAge: 1400 + Math.floor(this.rng() * 600),
           phi: 0.0, theta: this.rng() * Math.PI * 2, naturalFreq: 0.03 + (this.rng() - 0.5) * 0.01
         };
-        this.plants.push(root);
+        this.stellarCores.push(root);
 
         for (let b = 0; b < 2; b++) {
           const bX = Math.max(1, Math.min(this.cols - 2, rootX + (b === 0 ? -1 : 1)));
           const bY = Math.max(this.headerRows + 1, Math.min(this.rows - this.footerRows - 1, rootY - 1));
           const child = {
-            x: bX, y: bY, parent: root, children: [], synapseWeights: new Map(),
-            speciesIdx: spIdx, energy: 16.0, age: 0, maxAge: 1400 + Math.floor(this.rng() * 600),
+            x: bX, y: bY, parent: root, filaments: [],
+            speciesIdx: spIdx, fusionEnergy: 16.0, age: 0, maxAge: 1400 + Math.floor(this.rng() * 600),
             phi: 0.0, theta: this.rng() * Math.PI * 2, naturalFreq: 0.03 + (this.rng() - 0.5) * 0.01
           };
-          root.children.push(child);
-          root.synapseWeights.set(child, 1.2);
-          this.plants.push(child);
+          root.filaments.push(child);
+          this.stellarCores.push(child);
         }
       }
 
       for (let i = 0; i < 18; i++) {
-        this.grazers.push({
+        this.accretionSwarm.push({
           x: this.rng() * this.cols,
           y: this.headerRows + this.rng() * (this.rows - this.headerRows - this.footerRows),
           vx: (this.rng() - 0.5) * 0.6,
           vy: (this.rng() - 0.5) * 0.6,
-          energy: 45.0,
+          massEnergy: 45.0,
           age: 0,
-          genome: this.mutateGrazerGenome(null),
-          maxSpeed: 0.60
+          genome: this.mutateAccretionGenome(null),
+          orbitalVelocity: 0.60
         });
       }
 
       for (let i = 0; i < 6; i++) {
-        this.benthicCrabs.push({
+        this.dustCondensers.push({
           x: this.rng() * this.cols,
           y: this.rows - this.footerRows - 2 + this.rng(),
           vx: (this.rng() - 0.5) * 0.3,
-          energy: 55.0
+          coreEnergy: 55.0
         });
       }
 
       for (let i = 0; i < 2; i++) {
-        this.apexPredators.push({
+        this.supermassiveHoles.push({
           x: this.rng() * this.cols,
           y: this.headerRows + this.rng() * (this.rows - this.headerRows - this.footerRows),
           vx: (this.rng() - 0.5) * 0.8,
           vy: (this.rng() - 0.5) * 0.8,
-          energy: 65.0,
+          singularityMass: 65.0,
           cruiseSpeed: 0.65,
           burstSpeed: 1.10,
-          isSprinting: false,
-          sprintCooldown: 0
+          isJetSprinting: false,
+          jetCooldown: 0
         });
       }
     }
 
-    stepSubstrates(climate) {
+    stepSubstrates(epoch) {
       this.morphCycleTime += 0.005;
       const breathing = Math.sin(this.morphCycleTime) * 0.003;
-      const F = climate.F + breathing;
-      const k = climate.k + breathing * 0.5;
+      const F = epoch.F + breathing;
+      const k = epoch.k + breathing * 0.5;
       const Du = 0.16;
       const Dv = 0.08;
 
@@ -291,8 +292,8 @@
           const lapV = (this.TuringV[this.cellIdx(x + 1, y)] + this.TuringV[this.cellIdx(x - 1, y)] +
             this.TuringV[this.cellIdx(x, y + 1)] + this.TuringV[this.cellIdx(x, y - 1)]) * 0.25 - v;
 
-          const localF = F + (this.S_field[i] / 10.0) * 0.006;
-          const localK = k + (this.A_field[i] / 8.0) * 0.005;
+          const localF = F + (this.BaryonGas[i] / 10.0) * 0.006;
+          const localK = k + (this.GravAlarm[i] / 8.0) * 0.005;
           const uvv = u * v * v;
 
           let nU = u + (Du * lapU - uvv + localF * (1.0 - u));
@@ -306,12 +307,13 @@
           this.nextU[i] = Math.max(0.0, Math.min(1.0, nU));
           this.nextV[i] = Math.max(0.0, Math.min(1.0, nV));
 
-          const dVal = this.D_field[i];
+          // Supernova Metallicity Diffusion & Baryon Recycling
+          const dVal = this.StellarDust[i];
           const deltaD = -0.015 * dVal + 0.02;
-          this.D_field[i] = Math.max(0.0, dVal + deltaD);
-          this.S_field[i] = Math.min(10.0, this.S_field[i] + 1.2 * Math.abs(deltaD));
+          this.StellarDust[i] = Math.max(0.0, dVal + deltaD);
+          this.BaryonGas[i] = Math.min(10.0, this.BaryonGas[i] + 1.2 * Math.abs(deltaD));
 
-          this.A_field[i] *= 0.94;
+          this.GravAlarm[i] *= 0.94;
         }
       }
 
@@ -320,126 +322,125 @@
     }
 
     update(now, allSectors) {
-      this.seasonalTime += 0.0015;
-      const seasonIdx = Math.floor((this.seasonalTime / (Math.PI * 2)) * SEASONS.length) % SEASONS.length;
-      const climate = SEASONS[seasonIdx];
+      this.epochTime += 0.0015;
+      const epochIdx = Math.floor((this.epochTime / (Math.PI * 2)) * COSMIC_EPOCHS.length) % COSMIC_EPOCHS.length;
+      const epoch = COSMIC_EPOCHS[epochIdx];
 
       this.globalKuramotoCoupling = Math.max(0.04, this.globalKuramotoCoupling - 0.001);
-      this.stepSubstrates(climate);
+      this.stepSubstrates(epoch);
 
-      // Local Wormhole Exit/Entrance
+      // Einstein-Rosen Wormhole Singularity
       const myWormhole = wormholeNodes[this.sectorIdx];
       const whX = Math.floor(myWormhole.x * this.cols);
       const whY = Math.floor(this.headerRows + myWormhole.y * (this.rows - this.headerRows - this.footerRows));
 
-      // Continuous Wormhole Morphogen Emission
-      this.injectMorphogen(whX, whY, 2, 0.15);
+      // Continuous Singularity Accretion Glow
+      this.injectIonization(whX, whY, 2, 0.15);
 
-      // 1. Flora Update + Cross-Sector Spore Emission
-      for (let i = this.plants.length - 1; i >= 0; i--) {
-        const p = this.plants[i];
-        p.age++;
-        p.phi = Math.max(0.0, p.phi - 0.04);
+      // 1. Stellar Cores & Cluster Filaments
+      for (let i = this.stellarCores.length - 1; i >= 0; i--) {
+        const star = this.stellarCores[i];
+        star.age++;
+        star.phi = Math.max(0.0, star.phi - 0.04);
 
         let phaseCouplingSum = 0;
         let connectedCount = 0;
-        if (p.parent && this.plants.includes(p.parent)) {
-          phaseCouplingSum += Math.sin(p.parent.theta - p.theta);
+        if (star.parent && this.stellarCores.includes(star.parent)) {
+          phaseCouplingSum += Math.sin(star.parent.theta - star.theta);
           connectedCount++;
         }
-        for (let j = 0; j < p.children.length; j++) {
-          const ch = p.children[j];
-          if (this.plants.includes(ch)) {
-            phaseCouplingSum += Math.sin(ch.theta - p.theta);
+        for (let j = 0; j < star.filaments.length; j++) {
+          const ch = star.filaments[j];
+          if (this.stellarCores.includes(ch)) {
+            phaseCouplingSum += Math.sin(ch.theta - star.theta);
             connectedCount++;
           }
         }
-        p.theta += p.naturalFreq + (connectedCount > 0 ? (this.globalKuramotoCoupling / connectedCount) * phaseCouplingSum : 0);
-        p.theta %= (Math.PI * 2);
+        star.theta += star.naturalFreq + (connectedCount > 0 ? (this.globalKuramotoCoupling / connectedCount) * phaseCouplingSum : 0);
+        star.theta %= (Math.PI * 2);
 
-        const sIndex = this.cellIdx(p.x, p.y);
+        const sIndex = this.cellIdx(star.x, star.y);
         const turingBoost = 1.0 + this.TuringV[sIndex] * 0.6;
-        const u = Math.min(this.S_field[sIndex], 0.35) * turingBoost;
-        this.S_field[sIndex] -= u * 0.5;
+        const u = Math.min(this.BaryonGas[sIndex], 0.35) * turingBoost;
+        this.BaryonGas[sIndex] -= u * 0.5;
 
-        const solarRate = 0.65 * climate.lux * 1.0 * turingBoost;
-        p.energy += solarRate * u - 0.09;
+        const accretionRate = 0.65 * epoch.uvFlux * 1.0 * turingBoost;
+        star.fusionEnergy += accretionRate * u - 0.09;
 
-        // Wormhole Spore Ingestion -> Target Sector Colonization
-        if (Math.hypot(p.x - whX, p.y - whY) < 3.0 && p.energy > 15.0 && this.rng() < 0.015) {
+        // Wormhole Primordial Spore Transfer to Connected Sector
+        if (Math.hypot(star.x - whX, star.y - whY) < 3.0 && star.fusionEnergy > 15.0 && this.rng() < 0.015) {
           const targetSector = allSectors[myWormhole.toSector];
-          if (targetSector && targetSector.plants.length < targetSector.maxPlants) {
+          if (targetSector && targetSector.stellarCores.length < targetSector.maxStars) {
             const tWh = wormholeNodes[targetSector.sectorIdx];
             const tX = Math.floor(tWh.x * targetSector.cols) + (this.rng() < 0.5 ? 1 : -1);
             const tY = Math.floor(targetSector.headerRows + tWh.y * (targetSector.rows - targetSector.headerRows - targetSector.footerRows));
-            targetSector.plants.push({
+            targetSector.stellarCores.push({
               x: Math.max(1, Math.min(targetSector.cols - 2, tX)),
               y: Math.max(targetSector.headerRows + 1, Math.min(targetSector.rows - targetSector.footerRows - 1, tY)),
               parent: null,
-              children: [],
-              synapseWeights: new Map(),
-              speciesIdx: p.speciesIdx,
-              energy: 18.0,
+              filaments: [],
+              speciesIdx: star.speciesIdx,
+              fusionEnergy: 18.0,
               age: 0,
               maxAge: 1400 + Math.floor(this.rng() * 600),
               phi: 1.0,
-              theta: p.theta,
-              naturalFreq: p.naturalFreq
+              theta: star.theta,
+              naturalFreq: star.naturalFreq
             });
-            targetSector.injectMorphogen(tX, tY, 2, 0.5);
+            targetSector.injectIonization(tX, tY, 2, 0.5);
             transitSparks.push({ from: this.sectorIdx, to: targetSector.sectorIdx, progress: 0, color: CGA.LIGHT_MAGENTA });
           }
         }
 
-        // Upward Branch Growth
-        if (p.energy > 14.0 && p.children.length < 2 && this.plants.length < this.maxPlants && this.rng() < 0.25) {
+        // Branching Galactic Bridge / Cluster Growth
+        if (star.fusionEnergy > 14.0 && star.filaments.length < 2 && this.stellarCores.length < this.maxStars && this.rng() < 0.25) {
           const dx = this.rng() < 0.5 ? -1 : 1;
           const dy = -1 - (this.rng() < 0.25 ? 1 : 0);
-          const childX = Math.max(1, Math.min(this.cols - 2, p.x + dx));
-          const childY = Math.max(this.headerRows + 1, Math.min(this.rows - this.footerRows - 1, p.y + dy));
+          const childX = Math.max(1, Math.min(this.cols - 2, star.x + dx));
+          const childY = Math.max(this.headerRows + 1, Math.min(this.rows - this.footerRows - 1, star.y + dy));
 
-          let occupied = this.plants.some(pl => pl.x === childX && pl.y === childY);
+          let occupied = this.stellarCores.some(s => s.x === childX && s.y === childY);
           if (!occupied) {
-            p.energy -= 6.5;
+            star.fusionEnergy -= 6.5;
             const child = {
-              x: childX, y: childY, parent: p, children: [], synapseWeights: new Map(),
-              speciesIdx: p.speciesIdx, energy: 16.0, age: 0, maxAge: 1400 + Math.floor(this.rng() * 600),
+              x: childX, y: childY, parent: star, filaments: [],
+              speciesIdx: star.speciesIdx, fusionEnergy: 16.0, age: 0, maxAge: 1400 + Math.floor(this.rng() * 600),
               phi: 0.0, theta: this.rng() * Math.PI * 2, naturalFreq: 0.03 + (this.rng() - 0.5) * 0.01
             };
-            p.children.push(child);
-            p.synapseWeights.set(child, 1.2);
-            this.plants.push(child);
-            this.injectMorphogen(childX, childY, 1, 0.4);
+            star.filaments.push(child);
+            this.stellarCores.push(child);
+            this.injectIonization(childX, childY, 1, 0.4);
           }
         }
 
-        if (p.energy <= 0 || p.age > p.maxAge) {
-          this.D_field[sIndex] = Math.min(8.0, this.D_field[sIndex] + 1.2);
-          if (p.parent) {
-            const idx = p.parent.children.indexOf(p);
-            if (idx !== -1) p.parent.children.splice(idx, 1);
+        // Supernova Collapse -> Dust Nucleation
+        if (star.fusionEnergy <= 0 || star.age > star.maxAge) {
+          this.StellarDust[sIndex] = Math.min(8.0, this.StellarDust[sIndex] + 1.2);
+          if (star.parent) {
+            const idx = star.parent.filaments.indexOf(star);
+            if (idx !== -1) star.parent.filaments.splice(idx, 1);
           }
-          this.plants.splice(i, 1);
+          this.stellarCores.splice(i, 1);
         }
       }
 
-      // 2. Grazer Harvesters Update + Wormhole Transit
-      for (let i = this.grazers.length - 1; i >= 0; i--) {
-        const g = this.grazers[i];
-        g.age++;
-        g.energy -= 0.06;
+      // 2. Accretion Swarm & Protoplanetary Bodies
+      for (let i = this.accretionSwarm.length - 1; i >= 0; i--) {
+        const body = this.accretionSwarm[i];
+        body.age++;
+        body.massEnergy -= 0.06;
 
-        const curl = this.getCurlVelocity(g.x, g.y, now);
+        const curl = this.getGalacticVorticity(body.x, body.y, now);
         let sepX = 0, sepY = 0, alignX = 0, alignY = 0, cohX = 0, cohY = 0, flockNeighbors = 0;
 
-        for (let j = 0; j < this.grazers.length; j++) {
-          const other = this.grazers[j];
-          if (other === g) continue;
-          const dist = Math.hypot(other.x - g.x, other.y - g.y);
+        for (let j = 0; j < this.accretionSwarm.length; j++) {
+          const other = this.accretionSwarm[j];
+          if (other === body) continue;
+          const dist = Math.hypot(other.x - body.x, other.y - body.y);
           if (dist > 0 && dist < 5) {
             if (dist < 2) {
-              sepX += (g.x - other.x) / dist;
-              sepY += (g.y - other.y) / dist;
+              sepX += (body.x - other.x) / dist;
+              sepY += (body.y - other.y) / dist;
             }
             alignX += other.vx;
             alignY += other.vy;
@@ -453,58 +454,59 @@
         if (flockNeighbors > 0) {
           alignX /= flockNeighbors;
           alignY /= flockNeighbors;
-          cohX = cohX / flockNeighbors - g.x;
-          cohY = cohY / flockNeighbors - g.y;
+          cohX = cohX / flockNeighbors - body.x;
+          cohY = cohY / flockNeighbors - body.y;
           flockVx = sepX * 0.25 + alignX * 0.2 + cohX * 0.02;
           flockVy = sepY * 0.25 + alignY * 0.2 + cohY * 0.02;
         }
 
+        // Black Hole Evasion
         let evadeX = 0, evadeY = 0, inDanger = false;
-        for (let j = 0; j < this.apexPredators.length; j++) {
-          const pred = this.apexPredators[j];
-          const pDist = Math.hypot(pred.x - g.x, pred.y - g.y);
-          if (pDist < 8) {
-            const safeDist = Math.max(pDist, 0.001);
-            evadeX += (g.x - pred.x) / (safeDist * 0.3);
-            evadeY += (g.y - pred.y) / (safeDist * 0.3);
+        for (let j = 0; j < this.supermassiveHoles.length; j++) {
+          const hole = this.supermassiveHoles[j];
+          const hDist = Math.hypot(hole.x - body.x, hole.y - body.y);
+          if (hDist < 8) {
+            const safeDist = Math.max(hDist, 0.001);
+            evadeX += (body.x - hole.x) / (safeDist * 0.3);
+            evadeY += (body.y - hole.y) / (safeDist * 0.3);
             inDanger = true;
           }
         }
 
-        let forageVx = 0, forageVy = 0, closestPlant = null, closestDist = Infinity;
-        const senseR = g.genome.r_sense || 8;
-        for (let j = 0; j < this.plants.length; j++) {
-          const p = this.plants[j];
-          if (p.energy <= 4.0) continue;
-          const d = Math.hypot(p.x - g.x, p.y - g.y);
+        // Baryon Infall Foraging toward nearest active Protostar Core
+        let infallVx = 0, infallVy = 0, closestStar = null, closestDist = Infinity;
+        const senseR = body.genome.gravSense || 8;
+        for (let j = 0; j < this.stellarCores.length; j++) {
+          const s = this.stellarCores[j];
+          if (s.fusionEnergy <= 4.0) continue;
+          const d = Math.hypot(s.x - body.x, s.y - body.y);
           if (d < senseR && d < closestDist) {
             closestDist = d;
-            closestPlant = p;
+            closestStar = s;
           }
         }
 
-        if (closestPlant) {
+        if (closestStar) {
           const safeDist = Math.max(closestDist, 0.001);
-          forageVx = ((closestPlant.x - g.x) / safeDist) * g.genome.maxSpeed;
-          forageVy = ((closestPlant.y - g.y) / safeDist) * g.genome.maxSpeed;
+          infallVx = ((closestStar.x - body.x) / safeDist) * body.genome.orbitalVelocity;
+          infallVy = ((closestStar.y - body.y) / safeDist) * body.genome.orbitalVelocity;
 
-          if (closestDist < 1.2 && closestPlant.energy > 4.0) {
-            const bite = Math.min(closestPlant.energy - 2.0, g.genome.b_eff);
-            closestPlant.energy -= bite;
-            g.energy = Math.min(80.0, g.energy + bite * 1.2);
-            closestPlant.phi = 1.0;
-            this.injectMorphogen(closestPlant.x, closestPlant.y, 1, 0.3);
+          if (closestDist < 1.2 && closestStar.fusionEnergy > 4.0) {
+            const accretionYield = Math.min(closestStar.fusionEnergy - 2.0, body.genome.accretionBite);
+            closestStar.fusionEnergy -= accretionYield;
+            body.massEnergy = Math.min(80.0, body.massEnergy + accretionYield * 1.2);
+            closestStar.phi = 1.0;
+            this.injectIonization(closestStar.x, closestStar.y, 1, 0.3);
           }
         }
 
-        // Wormhole Gravity Pull & Transit
-        const distToWh = Math.hypot(g.x - whX, g.y - whY);
+        // Wormhole Horizon Infall & Inter-Universal Leap
+        const distToWh = Math.hypot(body.x - whX, body.y - whY);
         if (distToWh < 6.0) {
           const pull = (6.0 - distToWh) / 6.0;
-          evadeX += ((whX - g.x) / Math.max(distToWh, 0.1)) * pull * 0.8;
-          evadeY += ((whY - g.y) / Math.max(distToWh, 0.1)) * pull * 0.8;
+          evadeX += ((whX - body.x) / Math.max(distToWh, 0.1)) * pull * 0.8;
+          evadeY += ((whY - body.y) / Math.max(distToWh, 0.1)) * pull * 0.8;
 
-          // Event Horizon Crossed -> Teleport to destination universe!
           if (distToWh < 1.4) {
             const targetSector = allSectors[myWormhole.toSector];
             if (targetSector) {
@@ -512,16 +514,16 @@
               const tX = tWh.x * targetSector.cols;
               const tY = targetSector.headerRows + tWh.y * (targetSector.rows - targetSector.headerRows - targetSector.footerRows);
 
-              this.grazers.splice(i, 1);
-              targetSector.grazers.push({
+              this.accretionSwarm.splice(i, 1);
+              targetSector.accretionSwarm.push({
                 x: tX + (this.rng() - 0.5) * 2.0,
                 y: tY + (this.rng() - 0.5) * 2.0,
-                vx: g.vx * 1.2,
-                vy: g.vy * 1.2,
-                energy: g.energy,
-                age: g.age,
-                genome: g.genome,
-                maxSpeed: g.maxSpeed
+                vx: body.vx * 1.2,
+                vy: body.vy * 1.2,
+                massEnergy: body.massEnergy,
+                age: body.age,
+                genome: body.genome,
+                orbitalVelocity: body.orbitalVelocity
               });
 
               transitSparks.push({ from: this.sectorIdx, to: targetSector.sectorIdx, progress: 0, color: CGA.YELLOW });
@@ -530,135 +532,136 @@
           }
         }
 
-        let desiredX = curl.u * 0.1 + flockVx * 0.8 + forageVx * 0.9;
-        let desiredY = curl.v * 0.1 + flockVy * 0.8 + forageVy * 0.9;
+        let desiredX = curl.u * 0.1 + flockVx * 0.8 + infallVx * 0.9;
+        let desiredY = curl.v * 0.1 + flockVy * 0.8 + infallVy * 0.9;
         if (inDanger) {
           desiredX = evadeX * 3.0;
           desiredY = evadeY * 3.0;
         }
 
-        g.vx += (desiredX - g.vx) * 0.12;
-        g.vy += (desiredY - g.vy) * 0.12;
-        const spd = Math.hypot(g.vx, g.vy);
-        const maxSpd = inDanger ? g.genome.maxSpeed * 1.5 : g.genome.maxSpeed;
+        body.vx += (desiredX - body.vx) * 0.12;
+        body.vy += (desiredY - body.vy) * 0.12;
+        const spd = Math.hypot(body.vx, body.vy);
+        const maxSpd = inDanger ? body.genome.orbitalVelocity * 1.5 : body.genome.orbitalVelocity;
         if (spd > maxSpd) {
-          g.vx = (g.vx / spd) * maxSpd;
-          g.vy = (g.vy / spd) * maxSpd;
+          body.vx = (body.vx / spd) * maxSpd;
+          body.vy = (body.vy / spd) * maxSpd;
         }
 
-        g.x = (g.x + g.vx + this.cols) % this.cols;
-        g.y += g.vy;
-        if (g.y < this.headerRows + 1) g.y = this.headerRows + 1;
-        if (g.y > this.rows - this.footerRows - 1) g.y = this.rows - this.footerRows - 1;
+        body.x = (body.x + body.vx + this.cols) % this.cols;
+        body.y += body.vy;
+        if (body.y < this.headerRows + 1) body.y = this.headerRows + 1;
+        if (body.y > this.rows - this.footerRows - 1) body.y = this.rows - this.footerRows - 1;
 
-        if (g.energy > 55.0 && this.grazers.length < 35) {
-          g.energy -= 28.0;
-          this.grazers.push({
-            x: (g.x + 1) % this.cols,
-            y: (g.y + 1) % this.rows,
+        // Mitotic Protoplanet Fission
+        if (body.massEnergy > 55.0 && this.accretionSwarm.length < 35) {
+          body.massEnergy -= 28.0;
+          this.accretionSwarm.push({
+            x: (body.x + 1) % this.cols,
+            y: (body.y + 1) % this.rows,
             vx: (this.rng() - 0.5) * 0.6,
             vy: (this.rng() - 0.5) * 0.6,
-            energy: 45.0,
+            massEnergy: 45.0,
             age: 0,
-            genome: this.mutateGrazerGenome(g.genome),
-            maxSpeed: g.genome.maxSpeed
+            genome: this.mutateAccretionGenome(body.genome),
+            orbitalVelocity: body.genome.orbitalVelocity
           });
         }
 
-        if (g.energy <= 0) {
-          this.grazers.splice(i, 1);
+        if (body.massEnergy <= 0) {
+          this.accretionSwarm.splice(i, 1);
         }
       }
 
-      // 3. Apex Hunters Update
-      for (let i = this.apexPredators.length - 1; i >= 0; i--) {
-        const a = this.apexPredators[i];
-        a.energy -= 0.28;
-        if (a.sprintCooldown > 0) a.sprintCooldown--;
-        a.isSprinting = false;
+      // 3. Supermassive Black Holes & Tidal Disruption Events
+      for (let i = this.supermassiveHoles.length - 1; i >= 0; i--) {
+        const hole = this.supermassiveHoles[i];
+        hole.singularityMass -= 0.28;
+        if (hole.jetCooldown > 0) hole.jetCooldown--;
+        hole.isJetSprinting = false;
 
         let nearest = null, minDist = Infinity;
-        for (let j = 0; j < this.grazers.length; j++) {
-          const g = this.grazers[j];
-          const dist = Math.hypot(g.x - a.x, g.y - a.y);
+        for (let j = 0; j < this.accretionSwarm.length; j++) {
+          const body = this.accretionSwarm[j];
+          const dist = Math.hypot(body.x - hole.x, body.y - hole.y);
           if (dist < minDist && dist < 14) {
             minDist = dist;
-            nearest = { g, idx: j, dist };
+            nearest = { body, idx: j, dist };
           }
         }
 
-        let desiredVx = a.vx, desiredVy = a.vy;
+        let desiredVx = hole.vx, desiredVy = hole.vy;
         if (nearest) {
-          const dx = nearest.g.x - a.x;
-          const dy = nearest.g.y - a.y;
+          const dx = nearest.body.x - hole.x;
+          const dy = nearest.body.y - hole.y;
           const safeDist = Math.max(nearest.dist, 0.001);
 
-          if (nearest.dist < 7 && a.energy > 20.0 && a.sprintCooldown === 0) {
-            a.isSprinting = true;
-            a.energy -= 0.45;
-            desiredVx = (dx / safeDist) * a.burstSpeed;
-            desiredVy = (dy / safeDist) * a.burstSpeed;
+          if (nearest.dist < 7 && hole.singularityMass > 20.0 && hole.jetCooldown === 0) {
+            hole.isJetSprinting = true;
+            hole.singularityMass -= 0.45;
+            desiredVx = (dx / safeDist) * hole.burstSpeed;
+            desiredVy = (dy / safeDist) * hole.burstSpeed;
           } else {
-            desiredVx = (dx / safeDist) * a.cruiseSpeed;
-            desiredVy = (dy / safeDist) * a.cruiseSpeed;
+            desiredVx = (dx / safeDist) * hole.cruiseSpeed;
+            desiredVy = (dy / safeDist) * hole.cruiseSpeed;
           }
 
           if (nearest.dist < 1.3) {
-            const victim = nearest.g;
+            const victim = nearest.body;
             const strikeIdx = this.cellIdx(Math.floor(victim.x), Math.floor(victim.y));
-            if (victim.genome && victim.genome.isArmored && this.rng() < 0.65) {
-              this.A_field[strikeIdx] = Math.min(8.0, this.A_field[strikeIdx] + 2.0);
-              a.energy -= 5.0;
-              victim.energy -= 6.0;
+            if (victim.genome && victim.genome.isDenseIronCore && this.rng() < 0.65) {
+              this.GravAlarm[strikeIdx] = Math.min(8.0, this.GravAlarm[strikeIdx] + 2.0);
+              hole.singularityMass -= 5.0;
+              victim.massEnergy -= 6.0;
               victim.vx -= (dx / safeDist) * 1.5;
               victim.vy -= (dy / safeDist) * 1.5;
-              a.sprintCooldown = 30;
+              hole.jetCooldown = 30;
             } else {
-              a.energy = Math.min(100.0, a.energy + 35.0);
-              this.injectMorphogen(Math.floor(victim.x), Math.floor(victim.y), 2, 0.4);
-              this.A_field[strikeIdx] = Math.min(8.0, this.A_field[strikeIdx] + 4.0);
-              this.grazers.splice(nearest.idx, 1);
-              a.sprintCooldown = 25;
+              hole.singularityMass = Math.min(100.0, hole.singularityMass + 35.0);
+              this.injectIonization(Math.floor(victim.x), Math.floor(victim.y), 2, 0.4);
+              this.GravAlarm[strikeIdx] = Math.min(8.0, this.GravAlarm[strikeIdx] + 4.0);
+              this.accretionSwarm.splice(nearest.idx, 1);
+              hole.jetCooldown = 25;
             }
           }
         }
 
-        a.vx += (desiredVx - a.vx) * 0.1;
-        a.vy += (desiredVy - a.vy) * 0.1;
-        a.x = (a.x + a.vx + this.cols) % this.cols;
-        a.y += a.vy;
-        if (a.y < this.headerRows + 1) a.y = this.headerRows + 1;
-        if (a.y > this.rows - this.footerRows - 1) a.y = this.rows - this.footerRows - 1;
+        hole.vx += (desiredVx - hole.vx) * 0.1;
+        hole.vy += (desiredVy - hole.vy) * 0.1;
+        hole.x = (hole.x + hole.vx + this.cols) % this.cols;
+        hole.y += hole.vy;
+        if (hole.y < this.headerRows + 1) hole.y = this.headerRows + 1;
+        if (hole.y > this.rows - this.footerRows - 1) hole.y = this.rows - this.footerRows - 1;
 
-        if (a.energy <= 0) {
-          this.apexPredators.splice(i, 1);
+        if (hole.singularityMass <= 0) {
+          this.supermassiveHoles.splice(i, 1);
         }
       }
 
-      // 4. Crabs
-      for (let i = this.benthicCrabs.length - 1; i >= 0; i--) {
-        const b = this.benthicCrabs[i];
-        b.energy -= 0.05;
-        const sIndex = this.cellIdx(Math.floor(b.x), Math.floor(b.y));
-        if (this.D_field[sIndex] > 0.2) {
-          this.D_field[sIndex] -= 0.3;
-          this.S_field[sIndex] = Math.min(10.0, this.S_field[sIndex] + 0.55);
-          b.energy = Math.min(90.0, b.energy + 0.6);
+      // 4. Interstellar Dust Condensers
+      for (let i = this.dustCondensers.length - 1; i >= 0; i--) {
+        const d = this.dustCondensers[i];
+        d.coreEnergy -= 0.05;
+        const sIndex = this.cellIdx(Math.floor(d.x), Math.floor(d.y));
+        if (this.StellarDust[sIndex] > 0.2) {
+          this.StellarDust[sIndex] -= 0.3;
+          this.BaryonGas[sIndex] = Math.min(10.0, this.BaryonGas[sIndex] + 0.55);
+          d.coreEnergy = Math.min(90.0, d.coreEnergy + 0.6);
         }
-        b.vx += (this.rng() - 0.5) * 0.08;
-        b.vx = Math.max(-0.35, Math.min(0.35, b.vx));
-        b.x = (b.x + b.vx + this.cols) % this.cols;
-        b.y = Math.min(this.rows - this.footerRows - 1, Math.max(this.rows - this.footerRows - 4, b.y + (this.rng() - 0.5) * 0.2));
+        d.vx += (this.rng() - 0.5) * 0.08;
+        d.vx = Math.max(-0.35, Math.min(0.35, d.vx));
+        d.x = (d.x + d.vx + this.cols) % this.cols;
+        d.y = Math.min(this.rows - this.footerRows - 1, Math.max(this.rows - this.footerRows - 4, d.y + (this.rng() - 0.5) * 0.2));
 
-        if (b.energy <= 0) {
-          this.benthicCrabs.splice(i, 1);
+        if (d.coreEnergy <= 0) {
+          this.dustCondensers.splice(i, 1);
         }
       }
     }
 
     render(ctx, originX, originY, cellW, cellH) {
-      const seasonIdx = Math.floor((this.seasonalTime / (Math.PI * 2)) * SEASONS.length) % SEASONS.length;
-      const climate = SEASONS[seasonIdx];
+      const epochIdx = Math.floor((this.epochTime / (Math.PI * 2)) * COSMIC_EPOCHS.length) % COSMIC_EPOCHS.length;
+      const epoch = COSMIC_EPOCHS[epochIdx];
 
       ctx.strokeStyle = CGA.DARK_GRAY;
       ctx.strokeRect(originX, originY, this.cols * cellW, this.rows * cellH);
@@ -668,33 +671,33 @@
 
       ctx.font = '11px Courier New, monospace';
       ctx.fillStyle = CGA.LIGHT_CYAN;
-      const title = `[${this.id}] ${this.name.toUpperCase()} :: ${climate.name.slice(0, 10)} FL:${this.plants.length} GZ:${this.grazers.length} AP:${this.apexPredators.length}`;
+      const title = `[${this.id}] ${this.name.toUpperCase()} :: ${epoch.name.slice(0, 11)} ST:${this.stellarCores.length} ACC:${this.accretionSwarm.length} SMBH:${this.supermassiveHoles.length}`;
       ctx.fillText(title.slice(0, this.cols), originX + 4, originY + 2);
 
       const headerLine = '═'.repeat(Math.max(0, this.cols));
       ctx.fillStyle = CGA.DARK_GRAY;
       ctx.fillText(headerLine, originX, originY + cellH);
 
-      // Morphogen Field Render
+      // Gas Density & Starburst Ionization Field Render
       for (let x = 0; x < this.cols; x++) {
         for (let y = this.headerRows; y < this.rows - this.footerRows; y++) {
           const i = this.cellIdx(x, y);
           const v = this.TuringV[i];
-          const s = this.S_field[i] / 10.0;
-          const a = this.A_field[i] / 8.0;
+          const s = this.BaryonGas[i] / 10.0;
+          const a = this.GravAlarm[i] / 8.0;
 
           let ch = ' ';
           let col = CGA.BLACK;
 
           if (a > 0.15) {
             ch = '!';
-            col = CGA.RED;
+            col = CGA.RED; // Relativistic Shock
           } else if (v > 0.4) {
             ch = v > 0.7 ? '#' : '%';
-            col = climate.color;
+            col = epoch.color; // Ionized Starburst Nebula
           } else if (s > 0.35) {
             ch = '.';
-            col = CGA.DARK_GRAY;
+            col = CGA.DARK_GRAY; // Cold Molecular Hydrogen
           }
 
           if (ch !== ' ') {
@@ -704,7 +707,7 @@
         }
       }
 
-      // Wormhole Event Horizon Portal Rendering
+      // Einstein-Rosen Wormhole Event Horizon
       const myWormhole = wormholeNodes[this.sectorIdx];
       const whX = Math.floor(myWormhole.x * this.cols);
       const whY = Math.floor(this.headerRows + myWormhole.y * (this.rows - this.headerRows - this.footerRows));
@@ -717,61 +720,61 @@
       ctx.fillStyle = CGA.LIGHT_CYAN;
       ctx.fillText(`⮞SEC-0${myWormhole.toSector + 1}`, originX + (whX - 2) * cellW, originY + (whY + 1) * cellH);
 
-      // Flora
-      for (let i = 0; i < this.plants.length; i++) {
-        const p = this.plants[i];
-        const sp = SPECIES_DOS[p.speciesIdx] || SPECIES_DOS[0];
-        ctx.fillStyle = p.phi > 0.08 ? sp.flash : sp.color;
-        ctx.fillText(sp.char, originX + p.x * cellW, originY + p.y * cellH);
+      // Stellar Cores
+      for (let i = 0; i < this.stellarCores.length; i++) {
+        const star = this.stellarCores[i];
+        const sp = STELLAR_CLASSES[star.speciesIdx] || STELLAR_CLASSES[0];
+        ctx.fillStyle = star.phi > 0.08 ? sp.flash : sp.color;
+        ctx.fillText(sp.char, originX + star.x * cellW, originY + star.y * cellH);
       }
 
-      // Grazers
-      for (let i = 0; i < this.grazers.length; i++) {
-        const g = this.grazers[i];
+      // Accretion Swarm (Planetesimals, Cometary Disks, Dense Cores)
+      for (let i = 0; i < this.accretionSwarm.length; i++) {
+        const body = this.accretionSwarm[i];
         let fChar = '>';
-        if (g.genome && g.genome.isArmored) {
+        if (body.genome && body.genome.isDenseIronCore) {
           fChar = '▲';
-          ctx.fillStyle = CGA.YELLOW;
-        } else if (g.genome && g.genome.maxSpeed > 0.68) {
+          ctx.fillStyle = CGA.YELLOW; // Dense Iron Core Body
+        } else if (body.genome && body.genome.orbitalVelocity > 0.68) {
           fChar = '»';
-          ctx.fillStyle = CGA.LIGHT_GREEN;
+          ctx.fillStyle = CGA.LIGHT_GREEN; // High-Speed Hypervelocity Rogue
         } else {
-          const heading = Math.atan2(g.vy, g.vx);
+          const heading = Math.atan2(body.vy, body.vx);
           if (Math.abs(heading) > Math.PI * 0.75) fChar = '<';
           else if (heading > Math.PI * 0.25) fChar = 'v';
           else if (heading < -Math.PI * 0.25) fChar = '^';
-          ctx.fillStyle = CGA.LIGHT_CYAN;
+          ctx.fillStyle = CGA.LIGHT_CYAN; // Protoplanetary Infall Body
         }
-        ctx.fillText(fChar, originX + Math.floor(g.x) * cellW, originY + Math.floor(g.y) * cellH);
+        ctx.fillText(fChar, originX + Math.floor(body.x) * cellW, originY + Math.floor(body.y) * cellH);
       }
 
-      // Apex Hunters
-      for (let i = 0; i < this.apexPredators.length; i++) {
-        const a = this.apexPredators[i];
-        const heading = Math.atan2(a.vy, a.vx);
+      // Supermassive Black Holes & Hawking Sinks
+      for (let i = 0; i < this.supermassiveHoles.length; i++) {
+        const hole = this.supermassiveHoles[i];
+        const heading = Math.atan2(hole.vy, hole.vx);
         let aChar = 'X';
         if (Math.abs(heading) > Math.PI * 0.75) aChar = '◄';
         else if (heading > Math.PI * 0.25) aChar = '▼';
         else if (heading < -Math.PI * 0.25) aChar = '▲';
         else aChar = '►';
-        ctx.fillStyle = a.isSprinting ? CGA.LIGHT_RED : CGA.RED;
-        ctx.fillText(aChar, originX + Math.floor(a.x) * cellW, originY + Math.floor(a.y) * cellH);
+        ctx.fillStyle = hole.isJetSprinting ? CGA.LIGHT_RED : CGA.RED;
+        ctx.fillText(aChar, originX + Math.floor(hole.x) * cellW, originY + Math.floor(hole.y) * cellH);
       }
 
-      // Crabs
+      // Interstellar Dust Condensers
       ctx.fillStyle = CGA.BROWN;
-      for (let i = 0; i < this.benthicCrabs.length; i++) {
-        const b = this.benthicCrabs[i];
-        ctx.fillText('¥', originX + Math.floor(b.x) * cellW, originY + Math.floor(b.y) * cellH);
+      for (let i = 0; i < this.dustCondensers.length; i++) {
+        const d = this.dustCondensers[i];
+        ctx.fillText('¥', originX + Math.floor(d.x) * cellW, originY + Math.floor(d.y) * cellH);
       }
     }
   }
 
   const sectors = [
-    new UniverseSector(0, 'SEC-01', 'Abyssal Trench', 0x7A49B2),
-    new UniverseSector(1, 'SEC-02', 'Biolume Shelf', 0xC914E3),
-    new UniverseSector(2, 'SEC-03', 'Solstice Spire', 0x11DF08),
-    new UniverseSector(3, 'SEC-04', 'Resonance Basin', 0x88FA20)
+    new UniverseSector(0, 'SEC-01', 'Pillars of Creation', 0x7A49B2),
+    new UniverseSector(1, 'SEC-02', 'Carina Starburst', 0xC914E3),
+    new UniverseSector(2, 'SEC-03', 'Tarantula Nebula', 0x11DF08),
+    new UniverseSector(3, 'SEC-04', 'Orion Molecular Cloud', 0x88FA20)
   ];
 
   function resize() {
@@ -812,7 +815,7 @@
     const divider = '═'.repeat(Math.floor(width / CHAR_W));
     ctx.fillText(divider, 0, footerTop);
 
-    const nav = ` [M] LAYOUT: ${layoutMode.toUpperCase()}  |  [W] WORMHOLES: ACTIVE  |  [P] ${isPaused ? 'RESUME' : 'PAUSE'}  |  [R] RESEED  |  FPS: ${currentFps}`;
+    const nav = ` [M] MATRIX: ${layoutMode.toUpperCase()}  |  [W] WORMHOLES: ACTIVE  |  [P] ${isPaused ? 'RESUME' : 'PAUSE'}  |  [R] BIG BANG RESET  |  FPS: ${currentFps}`;
     ctx.fillText(nav, 0, footerTop + CHAR_H);
   }
 
@@ -828,7 +831,6 @@
         continue;
       }
 
-      // Compute visual screen coords between source and dest portals
       const fromSector = sectors[spark.from];
       const toSector = sectors[spark.to];
       const qCols = fromSector.cols;
